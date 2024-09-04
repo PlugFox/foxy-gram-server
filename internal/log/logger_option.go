@@ -31,12 +31,10 @@ func WithWriter(writer io.Writer) OptionFunc {
 }
 
 // Levels:
-// - debug
-// - info
-// - warn
-// - error
-// - fatal
-// - panic
+// - DEBUG
+// - INFO
+// - WARN
+// - ERROR
 func WithLevel(level string) OptionFunc {
 	if level == "" {
 		return func(*Config) {}
