@@ -4,6 +4,7 @@ import (
 	"log/slog"
 
 	config "github.com/plugfox/foxy-gram-server/internal/config"
+	storage_logger "github.com/plugfox/foxy-gram-server/internal/storage/storage_logger"
 	"gorm.io/gorm"
 	"gorm.io/gorm/schema"
 )
@@ -22,7 +23,7 @@ func New(config *config.Config, logger *slog.Logger) (*Storage, error) {
 		dialector,
 		&gorm.Config{
 			NamingStrategy: schema.NamingStrategy{},
-			Logger:         NewGormSlogLogger(logger),
+			Logger:         storage_logger.NewGormSlogLogger(logger),
 		})
 	if err != nil {
 		return nil, err
@@ -38,7 +39,7 @@ func New(config *config.Config, logger *slog.Logger) (*Storage, error) {
 	if err := db.AutoMigrate(&authentication.TOTP{}); err != nil {
 		return nil, err
 	}
-	 if err := db.AutoMigrate(&MessageEntity{}); err != nil {
+	if err := db.AutoMigrate(&MessageEntity{}); err != nil {
 		return nil, err
 	}
 	if err := db.AutoMigrate(&MessageAttachment{}); err != nil {
@@ -47,6 +48,11 @@ func New(config *config.Config, logger *slog.Logger) (*Storage, error) {
 	if err := db.AutoMigrate(&chat.Message{}); err != nil {
 		return nil, err
 	} */
+
+	// var result int
+	// db.Raw("SELECT 1").Scan(&result)
+	// logger.Debug("Result of the SELECT 1 query", slog.Int("result", result))
+	// logger.Debug("Database connection established")
 
 	return &Storage{db: db}, nil
 }

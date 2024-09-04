@@ -14,6 +14,7 @@ import (
 
 	config "github.com/plugfox/foxy-gram-server/internal/config"
 	log "github.com/plugfox/foxy-gram-server/internal/log"
+	storage "github.com/plugfox/foxy-gram-server/internal/storage"
 )
 
 func main() {
@@ -53,7 +54,11 @@ func run(config *config.Config, logger *slog.Logger) error {
 		return fmt.Errorf("setting max procs: %w", err)
 	}
 
-	// TODO: Setup database connection
+	// Setup database connection
+	_, err = storage.New(config, logger)
+	if err != nil {
+		return fmt.Errorf("database connection error: %w", err)
+	}
 
 	// TODO: Setup Telegram bot
 

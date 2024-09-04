@@ -1,4 +1,4 @@
-package storage
+package storage_logger
 
 import (
 	"context"
@@ -28,7 +28,7 @@ func (l *GormSlogLogger) LogMode(level logger.LogLevel) logger.Interface {
 
 // Info logs info-level messages.
 func (l *GormSlogLogger) Info(ctx context.Context, msg string, data ...interface{}) {
-	l.logger.InfoContext(ctx, msg, slog.Any("data", data))
+	l.logger.DebugContext(ctx, msg, slog.Any("data", data))
 }
 
 // Warn logs warning-level messages.
