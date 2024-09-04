@@ -20,7 +20,12 @@ type Config struct {
 
 // Telegram config
 type TelegramConfig struct {
-	Token string `yaml:"token" env:"TELEGRAM_TOKEN" env-required:"true" env-description:"Telegram bot token"`
+	Token     string        `yaml:"token" env:"TELEGRAM_TOKEN" env-required:"true" env-description:"Telegram bot token"`
+	Timeout   time.Duration `yaml:"timeout" env:"TELEGRAM_TIMEOUT" env-default:"10s" env-description:"Telegram bot timeout"`
+	Admins    []int64       `yaml:"admins" env:"TELEGRAM_ADMINS" env-description:"Telegram bot admins"`
+	Whitelist []int64       `yaml:"whitelist" env:"TELEGRAM_WHITELIST" env-description:"Telegram bot whitelist"`
+	Blacklist []int64       `yaml:"blacklist" env:"TELEGRAM_BLACKLIST" env-description:"Telegram bot blacklist"`
+	IgnoreVia bool          `yaml:"ignore_via" env:"TELEGRAM_IGNORE_VIA" env-default:"false" env-description:"Ignore messages from other bots"`
 }
 
 // API config
@@ -43,13 +48,13 @@ func IsValid() bool {
 	return true
 }
 
-// ConfigError - наша собственная структура для ошибок
-type ConfigError struct {
+// Error - наша собственная структура для ошибок
+type Error struct {
 	Message string
 }
 
 // Error - реализация метода Error для нашего типа ошибки
-func (e *ConfigError) Error() string {
+func (e *Error) Error() string {
 	return e.Message
 }
 
@@ -62,14 +67,14 @@ func MustLoadConfig() (*Config, error) {
 	configPath := os.Getenv("CONFIG_PATH")
 	if configPath == "" {
 		configPath = "config.yml"
-		/* return nil, &ConfigError{
+		/* return nil, &Error{
 			Message: "CONFIG_PATH is not set",
 		} */
 	}
 
 	// Check if config file exists
 	if _, err := os.Stat(configPath); os.IsNotExist(err) {
-		return nil, &ConfigError{
+		return nil, &Error{
 			Message: fmt.Sprintf("Config file does not exist: %s", configPath),
 		}
 	}
@@ -77,7 +82,7 @@ func MustLoadConfig() (*Config, error) {
 	var config Config
 
 	if err := cleanenv.ReadConfig(configPath, &config); err != nil {
-		return nil, &ConfigError{
+		return nil, &Error{
 			Message: fmt.Sprintf("Cannot read config file: %s", err),
 		}
 	}

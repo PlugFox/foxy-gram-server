@@ -15,6 +15,7 @@ import (
 	config "github.com/plugfox/foxy-gram-server/internal/config"
 	log "github.com/plugfox/foxy-gram-server/internal/log"
 	storage "github.com/plugfox/foxy-gram-server/internal/storage"
+	"github.com/plugfox/foxy-gram-server/internal/telegram"
 )
 
 func main() {
@@ -42,6 +43,7 @@ func main() {
 	}
 
 	os.Exit(0)
+	// select {}
 }
 
 func run(config *config.Config, logger *slog.Logger) error {
@@ -60,13 +62,19 @@ func run(config *config.Config, logger *slog.Logger) error {
 		return fmt.Errorf("database connection error: %w", err)
 	}
 
-	// TODO: Setup Telegram bot
+	// Setup Telegram bot
+	telegram, err := telegram.New(config, logger)
+	if err != nil {
+		return fmt.Errorf("telegram bot setup error: %w", err)
+	}
 
 	// TODO: Setup API server
 
 	// TODO: Setup Centrifuge server
 
 	// TODO: Setup InfluxDB metrics (if any)
+
+	telegram.Start()
 
 	logger.InfoContext(ctx, "Server started", slog.String("host", config.API.Host), slog.Int("port", config.API.Port))
 

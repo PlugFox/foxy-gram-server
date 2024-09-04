@@ -26,13 +26,15 @@ func New(config *config.Config, logger *slog.Logger) (*Storage, error) {
 		&gorm.Config{
 			NamingStrategy: schema.NamingStrategy{},
 			Logger:         storage_logger.NewGormSlogLogger(logger),
+			NowFunc:        func() time.Time { return time.Now().UTC() },
 		})
 	if err != nil {
 		return nil, err
 	}
 
 	// Migrations
-	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	const timeoutSeconds = 15 * 60
+	ctx, cancel := context.WithTimeout(context.Background(), timeoutSeconds*time.Second)
 	defer cancel() // releases resources if slowOperation completes before timeout elapses
 	if err := db.WithContext(ctx).AutoMigrate( /* &User{}, &Channel{}, &TOTP{}, &MessageEntity{}, &MessageAttachment{}, &Message{} */ ); err != nil {
 		return nil, err
