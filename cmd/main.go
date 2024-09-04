@@ -1,32 +1,67 @@
 package main
 
 import (
-	"flag"
+	"context"
 	"fmt"
+	logByDefault "log"
+	"log/slog"
 	"os"
+	"time"
+
+	// This controls the maxprocs environment variable in container runtimes.
+	// see https://martin.baillie.id/wrote/gotchas-in-the-go-network-packages-defaults/#bonus-gomaxprocs-containers-and-the-cfs
+	"go.uber.org/automaxprocs/maxprocs"
+
+	config "github.com/plugfox/foxy-gram-server/internal/config"
+	log "github.com/plugfox/foxy-gram-server/internal/log"
 )
 
 func main() {
-	var (
-		token   string
-		chatID  int64
-		message string
-	)
+	// Set the local timezone to UTC
+	time.Local = time.UTC
 
-	flag.StringVar(&token, "token", "", "Telegram Bot Token")
-	flag.Int64Var(&chatID, "chat-id", 0, "Telegram Chat ID")
-	flag.StringVar(&message, "message", "", "Message to send")
-	flag.Parse()
-
-	if token == "" || chatID == 0 || message == "" {
-		flag.Usage()
+	// Initialize the configuration
+	config, err := config.MustLoadConfig()
+	if err != nil {
+		logByDefault.Fatalf("Config load error: %v", err)
 		os.Exit(1)
 	}
 
-	/* bot := foxygram.NewBot(token)
-	err := bot.SendMessage(chatID, message)
+	// log := logger.SetupLogger(config.Environment)
+
+	// Logger configuration
+	logger := log.New(
+		log.WithLevel(config.Verbose),
+		log.WithSource(),
+	)
+
+	if err := run(config, logger); err != nil {
+		logger.ErrorContext(context.Background(), "an error occurred", slog.String("error", err.Error()))
+		os.Exit(1)
+	}
+
+	os.Exit(0)
+}
+
+func run(config *config.Config, logger *slog.Logger) error {
+	ctx := context.Background()
+
+	_, err := maxprocs.Set(maxprocs.Logger(func(s string, i ...interface{}) {
+		logger.DebugContext(ctx, fmt.Sprintf(s, i...))
+	}))
 	if err != nil {
-		log.Fatal(err)
-	} */
-	fmt.Println("Message sent successfully")
+		return fmt.Errorf("setting max procs: %w", err)
+	}
+
+	// TODO: Setup database connection
+
+	// TODO: Setup Telegram bot
+
+	// TODO: Setup API server
+
+	// TODO: Setup Centrifuge server
+
+	logger.InfoContext(ctx, "Server started", slog.String("host", config.API.Host), slog.Int("port", config.API.Port))
+
+	return nil
 }

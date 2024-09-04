@@ -9,12 +9,12 @@ require (
 	github.com/go-chi/render v1.0.3
 	github.com/golangci/golangci-lint v1.60.3
 	github.com/grpc-ecosystem/go-grpc-middleware/v2 v2.1.0
+	github.com/ilyakaznacheev/cleanenv v1.5.0
 	github.com/stretchr/testify v1.9.0
-	go.opentelemetry.io/otel/trace v1.28.0
+	go.opentelemetry.io/otel/trace v1.29.0
 	go.uber.org/automaxprocs v1.5.3
 	golang.org/x/vuln v1.1.3
 	gorm.io/gorm v1.25.11
-	github.com/ilyakaznacheev/cleanenv v1.5.0
 )
 
 require (
@@ -201,7 +201,7 @@ require (
 	gitlab.com/bosi/decorder v0.4.2 // indirect
 	go-simpler.org/musttag v0.12.2 // indirect
 	go-simpler.org/sloglint v0.7.2 // indirect
-	go.opentelemetry.io/otel v1.28.0 // indirect
+	go.opentelemetry.io/otel v1.29.0 // indirect
 	go.uber.org/atomic v1.11.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.27.0 // indirect
@@ -218,6 +218,7 @@ require (
 	google.golang.org/grpc v1.64.1 // indirect
 	google.golang.org/protobuf v1.34.2 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
+	gopkg.in/telebot.v3 v3.3.8 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	honnef.co/go/tools v0.5.1 // indirect
