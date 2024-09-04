@@ -116,6 +116,8 @@ func storeMessagesMiddleware(db *storage.Storage, onError func(error)) tele.Midd
 					// pass a structure to the function
 
 					// TODO: update last message id in the database
+
+					// TODO: create a in memmory cache for the last message id and other data
 					err := db.UpsertMessage(converters.MessageFromTG(msg), convertUser(msg.Sender))
 					if err != nil && onError != nil {
 						onError(err)
