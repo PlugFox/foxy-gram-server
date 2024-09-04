@@ -19,13 +19,12 @@ type User struct {
 	// 	Username string `gorm:"uniqueIndex" json:"username"`      // User's or bot's username.
 
 	// User fields
-	FirstName    string   `json:"first_name"`
-	LastName     string   `json:"last_name"`
-	Username     string   `json:"username"`
-	Usernames    []string `json:"active_usernames"`
-	LanguageCode string   `json:"language_code"`
-	IsPremium    bool     `json:"is_premium"`
-	IsBot        bool     `json:"is_bot"`
+	FirstName    string `json:"first_name"`
+	LastName     string `json:"last_name"`
+	Username     string `json:"username"`
+	LanguageCode string `json:"language_code"`
+	IsPremium    bool   `json:"is_premium"`
+	IsBot        bool   `json:"is_bot"`
 
 	// Meta fields
 	CreatedAt time.Time      `gorm:"autoCreateTime" json:"created_at"` // Time when the user registered.

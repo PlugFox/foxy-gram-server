@@ -10,12 +10,13 @@ import (
 
 // Config is the main config struct
 type Config struct {
-	Environment string         `yaml:"environment" env:"ENVIRONMENT" env-default:"production" env-description:"Environment name"`
-	Secret      string         `yaml:"secret" env:"SECRET" env-default:"" env-description:"Secret key for JWT token signing and validation"`
-	Verbose     string         `yaml:"verbose" env:"VERBOSE" env-default:"info" env-description:"Verbose mode for output: debug | info | warn | error"`
-	Database    DatabaseConfig `yaml:"database"`
-	Telegram    TelegramConfig `yaml:"telegram"`
-	API         APIConfig      `yaml:"api"`
+	Environment string `yaml:"environment" env:"ENVIRONMENT" env-default:"production" env-description:"Environment name"`
+	Secret      string `yaml:"secret" env:"SECRET" env-default:"" env-description:"Secret key for JWT token signing and validation"`
+	Verbose     string `yaml:"verbose" env:"VERBOSE" env-default:"info" env-description:"Verbose mode for output: debug | info | warn | error"`
+
+	Telegram TelegramConfig `yaml:"telegram"`
+	API      APIConfig      `yaml:"api"`
+	Database DatabaseConfig `yaml:"database"`
 }
 
 // Telegram config
@@ -39,8 +40,8 @@ type APIConfig struct {
 
 // SQLite / PostgreSQL / MySQL config for GORM dialector
 type DatabaseConfig struct {
-	Driver     string `yaml:"driver" env:"DATABASE_DRIVER" env-default:"sqlite" env-description:"Database driver to use: sqlite | postgres | mysql"`
-	Connection string `yaml:"connection" env:"DATABASE_CONNECTION" env-default:":memory:" env-description:"Connection string or path for SQLite database"`
+	Driver     string `yaml:"driver" env:"DATABASE_DRIVER" env-default:"sqlite3" env-description:"Database driver to use: sqlite3 | postgres | mysql"`
+	Connection string `yaml:"connection" env:"DATABASE_CONNECTION" env-default:"db.sqlite3" env-description:"Connection string or path for SQLite database"`
 }
 
 // IsValid - check if the google sign in config is valid

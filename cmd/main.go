@@ -57,7 +57,7 @@ func run(config *config.Config, logger *slog.Logger) error {
 	}
 
 	// Setup database connection
-	_, err = storage.New(config, logger)
+	db, err := storage.New(config, logger)
 	if err != nil {
 		return fmt.Errorf("database connection error: %w", err)
 	}
@@ -67,6 +67,8 @@ func run(config *config.Config, logger *slog.Logger) error {
 	if err != nil {
 		return fmt.Errorf("telegram bot setup error: %w", err)
 	}
+
+	db.UpsertUser(telegram.Me())
 
 	// TODO: Setup API server
 

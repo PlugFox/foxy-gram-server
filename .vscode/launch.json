@@ -7,7 +7,7 @@
             "request": "launch",
             "mode": "auto",
             "program": "${workspaceFolder}/cmd/main.go",
-            "envFile": "${workspaceFolder}/.env",
+            /* "envFile": "${workspaceFolder}/.env", */
             "cwd": "${workspaceFolder}",
             "env": {},
             "args": []
@@ -18,7 +18,7 @@
             "request": "launch",
             "mode": "auto",
             "program": "${file}",
-            "envFile": "${workspaceFolder}/.env",
+            /* "envFile": "${workspaceFolder}/.env", */
             "cwd": "${workspaceFolder}",
             "env": {},
             "args": []

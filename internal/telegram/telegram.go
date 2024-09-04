@@ -93,7 +93,6 @@ func convertUser(u *tele.User) *model.User {
 		FirstName:    u.FirstName,
 		LastName:     u.LastName,
 		Username:     u.Username,
-		Usernames:    u.Usernames,
 		LanguageCode: u.LanguageCode,
 		IsPremium:    u.IsPremium,
 		IsBot:        u.IsBot,

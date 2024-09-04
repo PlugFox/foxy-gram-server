@@ -48,3 +48,35 @@ func New(config *config.Config, logger *slog.Logger) (*Storage, error) {
 
 	return &Storage{db: db}, nil
 }
+
+// Close - close the database connection
+func (s *Storage) Close() error {
+	sqlDB, err := s.db.DB()
+	if err != nil {
+		return err
+	}
+	return sqlDB.Close()
+}
+
+// UserByID - get the user by ID
+func (s *Storage) UserByID(id model.UserID) (*model.User, error) {
+	var user model.User
+	if err := s.db.First(&user, id).Error; err != nil {
+		return nil, err
+	}
+	return &user, nil
+}
+
+// UserByUsername - get the user by username
+func (s *Storage) UserByUsername(username string) (*model.User, error) {
+	var user model.User
+	if err := s.db.Where("username = ?", username).First(&user).Error; err != nil {
+		return nil, err
+	}
+	return &user, nil
+}
+
+// UpsertUser - insert or update the user
+func (s *Storage) UpsertUser(user *model.User) error {
+	return s.db.Save(user).Error
+}
