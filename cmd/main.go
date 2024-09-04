@@ -61,6 +61,8 @@ func run(config *config.Config, logger *slog.Logger) error {
 
 	// TODO: Setup Centrifuge server
 
+	// TODO: Setup InfluxDB metrics (if any)
+
 	logger.InfoContext(ctx, "Server started", slog.String("host", config.API.Host), slog.Int("port", config.API.Port))
 
 	return nil
