@@ -8,9 +8,7 @@ import (
 )
 
 type (
-	UserID    int64
-	ChannelID int64
-	MessageID int64
+	UserID int64
 )
 
 type User struct {
@@ -38,4 +36,9 @@ func (u *User) Seen() *User {
 		Valid: true,
 	}
 	return u
+}
+
+// TableName - set the table name
+func (User) TableName() string {
+	return "users"
 }

@@ -63,7 +63,7 @@ func run(config *config.Config, logger *slog.Logger) error {
 	}
 
 	// Setup Telegram bot
-	telegram, err := telegram.New(config, logger)
+	telegram, err := telegram.New(db, config, logger)
 	if err != nil {
 		return fmt.Errorf("telegram bot setup error: %w", err)
 	}

@@ -6,7 +6,9 @@ import (
 	"log/slog"
 
 	config "github.com/plugfox/foxy-gram-server/internal/config"
+	"github.com/plugfox/foxy-gram-server/internal/converters"
 	"github.com/plugfox/foxy-gram-server/internal/model"
+	"github.com/plugfox/foxy-gram-server/internal/storage"
 
 	log "github.com/plugfox/foxy-gram-server/internal/log"
 	tele "gopkg.in/telebot.v3"
@@ -18,7 +20,7 @@ type Telegram struct {
 	bot *tele.Bot
 }
 
-func New(config *config.Config, logger *slog.Logger) (*Telegram, error) {
+func New(db *storage.Storage, config *config.Config, logger *slog.Logger) (*Telegram, error) {
 	pref := tele.Settings{
 		Token: config.Telegram.Token,
 		Poller: &tele.LongPoller{
@@ -48,6 +50,11 @@ func New(config *config.Config, logger *slog.Logger) (*Telegram, error) {
 		bot.Use(mw.Blacklist(config.Telegram.Blacklist...))
 	}
 
+	// Store messages in the database
+	bot.Use(storeMessagesMiddleware(db, func(err error) {
+		logger.Error("database error", slog.String("error", err.Error()))
+	}))
+
 	/* bot.Use(mw.Restrict(mw.RestrictConfig{
 		Chats: []int64{config.Telegram.ChatID},
 		In: func(c tele.Context) error {
@@ -70,6 +77,11 @@ func New(config *config.Config, logger *slog.Logger) (*Telegram, error) {
 		adminOnly.Handle("/kick", onKick) */
 	}
 
+	bot.Handle(tele.OnText, func(_ tele.Context) error {
+		// c.Reply("Hello!")
+		return nil
+	})
+
 	return &Telegram{
 		bot: bot,
 	}, nil
@@ -80,11 +92,31 @@ func (t *Telegram) Start() {
 }
 
 func (t *Telegram) Me() *model.User {
-	return convertUser(t.bot.Me).Seen()
+	return converters.UserFromTG(t.bot.Me).Seen()
 }
 
 func (t *Telegram) Stop() {
 	t.bot.Stop()
+}
+
+// storeMessages middleware - store messages in the database asynchronously
+func storeMessagesMiddleware(db *storage.Storage, onError func(error)) tele.MiddlewareFunc {
+	return func(next tele.HandlerFunc) tele.HandlerFunc {
+		return func(c tele.Context) error {
+			msg := c.Message()
+			if msg != nil {
+				go func() {
+					// TODO: save chat info too, not only the message and user
+					// pass a structure to the function
+					err := db.UpsertMessage(converters.MessageFromTG(msg), convertUser(msg.Sender))
+					if err != nil && onError != nil {
+						onError(err)
+					}
+				}()
+			}
+			return next(c)
+		}
+	}
 }
 
 func convertUser(u *tele.User) *model.User {

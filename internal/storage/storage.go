@@ -37,7 +37,13 @@ func New(config *config.Config, logger *slog.Logger) (*Storage, error) {
 	const timeoutSeconds = 15 * 60
 	ctx, cancel := context.WithTimeout(context.Background(), timeoutSeconds*time.Second)
 	defer cancel() // releases resources if slowOperation completes before timeout elapses
-	if err := db.WithContext(ctx).AutoMigrate(&model.User{} /* , &Channel{}, &TOTP{}, &MessageEntity{}, &MessageAttachment{}, &Message{} */); err != nil {
+	if err := db.WithContext(ctx).AutoMigrate(
+		&model.User{},
+		&model.Chat{},
+		&model.MessageOrigin{},
+		&model.Message{},
+		&model.ReplyMarkup{},
+	); err != nil {
 		return nil, err
 	}
 
@@ -79,4 +85,37 @@ func (s *Storage) UserByUsername(username string) (*model.User, error) {
 // UpsertUser - insert or update the user
 func (s *Storage) UpsertUser(user *model.User) error {
 	return s.db.Save(user).Error
+}
+
+// DeleteUser - delete the user
+func (s *Storage) DeleteUser(user *model.User) error {
+	return s.db.Delete(user).Error
+}
+
+// Users - get all users
+func (s *Storage) Users() ([]model.User, error) {
+	var users []model.User
+	if err := s.db.Find(&users).Error; err != nil {
+		return nil, err
+	}
+	return users, nil
+}
+
+// UpsertMessage - insert or update the message, and the users if any
+func (s *Storage) UpsertMessage(message *model.Message, users ...*model.User) error {
+	return s.db.Transaction(func(tx *gorm.DB) error {
+		if len(users) > 0 {
+			err := tx.Save(users).Error
+			if err != nil {
+				return err
+			}
+		}
+
+		err := tx.Save(message).Error
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
 }
