@@ -171,3 +171,6 @@ fabric.properties
 
 # Editor-based Rest Client
 .idea/httpRequests
+
+# Environment-specific values
+.env

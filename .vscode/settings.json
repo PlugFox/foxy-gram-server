@@ -1,5 +1,9 @@
 {
     "[go]": {
+        "files.autoSave": "afterDelay",
+        "files.autoSaveDelay": 10000,
+        "editor.minimap.showSlider": "always",
+        "editor.minimap.size": "fit",
         "editor.insertSpaces": true,
         "editor.tabSize": 2,
         "editor.suggest.snippetsPreventQuickSuggestions": false,
@@ -7,7 +11,7 @@
         "editor.tabCompletion": "onlySnippets",
         "editor.wordBasedSuggestions": "off",
         "editor.selectionHighlight": false,
-        "editor.defaultFormatter": "Dart-Code.dart-code",
+        "editor.defaultFormatter": "golang.go",
         "editor.formatOnSave": true,
         "editor.formatOnType": true,
         "editor.formatOnPaste": true,
@@ -49,6 +53,9 @@
         }
     },
     "go.lintOnSave": "package",
+    "[json]": {
+        "editor.defaultFormatter": "mohsen1.prettify-json"
+    },
     "search.exclude": {
         "coverage": true,
         "build": true
@@ -57,6 +64,10 @@
         "coverage": true,
         "build": true
     },
+    "go.testEnvFile": "${workspaceFolder}/.env",
+    "git.autofetch": true,
+    "redhat.telemetry.enabled": false,
+    "workbench.editor.enablePreview": false,
     // Causes the debug view to automatically appear when a breakpoint is hit. This
     // setting is global and not configurable per-language.
     "debug.openDebug": "openOnDebugBreak",

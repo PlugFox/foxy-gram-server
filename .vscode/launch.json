@@ -2,11 +2,22 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Launch",
+            "name": "[Go] Launch current file",
             "type": "go",
             "request": "launch",
             "mode": "auto",
-            "program": "${fileDirname}",
+            "program": "${workspaceFolder}/cmd/main.go",
+            "envFile": "${workspaceFolder}/.env",
+            "env": {},
+            "args": []
+        },
+        {
+            "name": "[Go] Launch current file",
+            "type": "go",
+            "request": "launch",
+            "mode": "auto",
+            "program": "${file}",
+            "envFile": "${workspaceFolder}/.env",
             "env": {},
             "args": []
         }
