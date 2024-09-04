@@ -12,7 +12,7 @@ import (
 type Config struct {
 	Environment string `yaml:"environment" env:"ENVIRONMENT" env-default:"production" env-description:"Environment name"`
 	Secret      string `yaml:"secret" env:"SECRET" env-default:"" env-description:"Secret key for JWT token signing and validation"`
-	Verbose     string `yaml:"verbose" env:"VERBOSE" env-default:"info" env-description:"Verbose mode for output: debug | info | warn | error"`
+	Verbose     string `yaml:"verbose" env:"VERBOSE" env-default:"warn" env-description:"Verbose mode for output: debug | info | warn | error"`
 
 	Telegram TelegramConfig `yaml:"telegram"`
 	API      APIConfig      `yaml:"api"`

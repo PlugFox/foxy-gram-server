@@ -16,21 +16,18 @@ type (
 type User struct {
 	ID UserID `gorm:"PrimaryKey" json:"id"` // Unique identifier for this user or bot.
 
-	// 	Username string `gorm:"uniqueIndex" json:"username"`      // User's or bot's username.
-
 	// User fields
-	FirstName    string `json:"first_name"`
-	LastName     string `json:"last_name"`
-	Username     string `json:"username"`
-	LanguageCode string `json:"language_code"`
-	IsPremium    bool   `json:"is_premium"`
-	IsBot        bool   `json:"is_bot"`
+	FirstName    string `json:"first_name"`    // User's or bot's first name.
+	LastName     string `json:"last_name"`     // User's or bot's last name.
+	Username     string `json:"username"`      // User's or bot's username.
+	LanguageCode string `json:"language_code"` // IETF language tag of the user's language.
+	IsPremium    bool   `json:"is_premium"`    // True, if the user is a premium user.
+	IsBot        bool   `json:"is_bot"`        // True, if the user is a bot.
 
 	// Meta fields
-	CreatedAt time.Time      `gorm:"autoCreateTime" json:"created_at"` // Time when the user registered.
+	LastSeen  sql.NullTime   `json:"last_seen"`                        // Unix time when the user was last seen.
 	UpdatedAt time.Time      `gorm:"autoUpdateTime" json:"updated_at"` // Time when the user was last updated.
 	DeletedAt gorm.DeletedAt `gorm:"index" json:"deleted_at"`          // Soft delete.
-	LastSeen  sql.NullTime   `json:"last_seen"`                        // Unix time when the user was last seen.
 	Extra     string         `json:"extra"`                            // Extra data.
 }
 
