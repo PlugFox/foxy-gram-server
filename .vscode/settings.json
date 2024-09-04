@@ -1,0 +1,73 @@
+{
+    "[go]": {
+        "editor.insertSpaces": true,
+        "editor.tabSize": 2,
+        "editor.suggest.snippetsPreventQuickSuggestions": false,
+        "editor.suggestSelection": "first",
+        "editor.tabCompletion": "onlySnippets",
+        "editor.wordBasedSuggestions": "off",
+        "editor.selectionHighlight": false,
+        "editor.defaultFormatter": "Dart-Code.dart-code",
+        "editor.formatOnSave": true,
+        "editor.formatOnType": true,
+        "editor.formatOnPaste": true,
+        "editor.codeActionsOnSave": {
+            "source.fixAll": "explicit",
+            "source.organizeImports": "explicit"
+        },
+        "editor.quickSuggestions": {
+            "comments": "on",
+            "strings": "on",
+            "other": "on"
+        },
+        "editor.links": true,
+        "editor.rulers": [
+            120
+        ]
+    },
+    "[go.mod]": {
+        "editor.formatOnSave": true,
+        "editor.codeActionsOnSave": {
+            "source.fixAll": "explicit",
+            "source.organizeImports": "explicit"
+        },
+    },
+    // gopls
+    "go.useLanguageServer": true,
+    "gopls": {
+        "formatting.local": "github.com/golang-templates/seed",
+        "formatting.gofumpt": true
+    },
+    // golangci-lint
+    "go.lintTool": "golangci-lint",
+    "go.lintFlags": [
+        "--fast"
+    ],
+    "[go][go.mod]": {
+        "editor.codeActionsOnSave": {
+            "source.organizeImports": "explicit"
+        }
+    },
+    "go.lintOnSave": "package",
+    "search.exclude": {
+        "coverage": true,
+        "build": true
+    },
+    "files.watcherExclude": {
+        "coverage": true,
+        "build": true
+    },
+    // Causes the debug view to automatically appear when a breakpoint is hit. This
+    // setting is global and not configurable per-language.
+    "debug.openDebug": "openOnDebugBreak",
+    "explorer.fileNesting.enabled": true,
+    "explorer.fileNesting.expand": false,
+    "explorer.fileNesting.patterns": {
+        ".gitignore": ".gitattributes, .gitmodules, .gitmessage, .mailmap, .git-blame*",
+        "readme.*": "authors, backers.md, changelog*, citation*, code_of_conduct.md, codeowners, contributing.md, contributors, copying, credits, governance.md, history.md, license*, maintainers, readme*, security.md, sponsors.md",
+        "*.go": "$(capture).g.go, $(capture).config.go, $(capture).test.go, $(capture)_test.go",
+    }
+    /* "files.associations": {
+        "*.drift": "sql"
+    }, */
+}
