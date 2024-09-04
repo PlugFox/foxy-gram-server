@@ -78,6 +78,11 @@ func New(db *storage.Storage, config *config.Config, logger *slog.Logger) (*Tele
 		adminOnly.Handle("/kick", onKick) */
 	}
 
+	// TODO: add more handlers
+	// tele.OnAddedToGroup
+	// tele.OnUserJoined
+	// Verify the user is passing the captcha or sending the code with buttons
+	// check out examples at the github
 	bot.Handle(tele.OnText, func(_ tele.Context) error {
 		// c.Reply("Hello!")
 		return nil
