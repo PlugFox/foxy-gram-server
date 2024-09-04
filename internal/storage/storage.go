@@ -1,7 +1,9 @@
 package storage
 
 import (
+	"context"
 	"log/slog"
+	"time"
 
 	config "github.com/plugfox/foxy-gram-server/internal/config"
 	storage_logger "github.com/plugfox/foxy-gram-server/internal/storage/storage_logger"
@@ -30,24 +32,11 @@ func New(config *config.Config, logger *slog.Logger) (*Storage, error) {
 	}
 
 	// Migrations
-	/* if err := db.AutoMigrate(&chat.User{}); err != nil {
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel() // releases resources if slowOperation completes before timeout elapses
+	if err := db.WithContext(ctx).AutoMigrate( /* &User{}, &Channel{}, &TOTP{}, &MessageEntity{}, &MessageAttachment{}, &Message{} */ ); err != nil {
 		return nil, err
 	}
-	if err := db.AutoMigrate(&chat.Channel{}); err != nil {
-		return nil, err
-	}
-	if err := db.AutoMigrate(&authentication.TOTP{}); err != nil {
-		return nil, err
-	}
-	if err := db.AutoMigrate(&MessageEntity{}); err != nil {
-		return nil, err
-	}
-	if err := db.AutoMigrate(&MessageAttachment{}); err != nil {
-		return nil, err
-	}
-	if err := db.AutoMigrate(&chat.Message{}); err != nil {
-		return nil, err
-	} */
 
 	// var result int
 	// db.Raw("SELECT 1").Scan(&result)
