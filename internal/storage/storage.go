@@ -6,6 +6,7 @@ import (
 	"time"
 
 	config "github.com/plugfox/foxy-gram-server/internal/config"
+	"github.com/plugfox/foxy-gram-server/internal/model"
 	storage_logger "github.com/plugfox/foxy-gram-server/internal/storage/storage_logger"
 	"gorm.io/gorm"
 	"gorm.io/gorm/schema"
@@ -36,7 +37,7 @@ func New(config *config.Config, logger *slog.Logger) (*Storage, error) {
 	const timeoutSeconds = 15 * 60
 	ctx, cancel := context.WithTimeout(context.Background(), timeoutSeconds*time.Second)
 	defer cancel() // releases resources if slowOperation completes before timeout elapses
-	if err := db.WithContext(ctx).AutoMigrate( /* &User{}, &Channel{}, &TOTP{}, &MessageEntity{}, &MessageAttachment{}, &Message{} */ ); err != nil {
+	if err := db.WithContext(ctx).AutoMigrate(&model.User{} /* , &Channel{}, &TOTP{}, &MessageEntity{}, &MessageAttachment{}, &Message{} */); err != nil {
 		return nil, err
 	}
 
