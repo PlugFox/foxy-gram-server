@@ -32,11 +32,10 @@ type APIConfig struct {
 	IdleTimeout  time.Duration `yaml:"idle_timeout" env:"API_IDLE_TIMEOUT" env-default:"15s"`
 }
 
-// SQLite or PostgreSQL config
+// SQLite / PostgreSQL / MySQL config for GORM dialector
 type DatabaseConfig struct {
-	// Driver is the database driver to use. Supported drivers are "sqlite3" and "postgres".
-	Driver     string `yaml:"driver" env:"DATABASE_DRIVER" env-default:"sqlite3" env-description:"Database driver to use"`
-	Connection string `yaml:"connection" env:"DATABASE_CONNECTION" env-default:":memory:" env-description:"Database connection string"`
+	Driver     string `yaml:"driver" env:"DATABASE_DRIVER" env-default:"sqlite" env-description:"Database driver to use: sqlite | postgres | mysql"`
+	Connection string `yaml:"connection" env:"DATABASE_CONNECTION" env-default:":memory:" env-description:"Connection string or path for SQLite database"`
 }
 
 // IsValid - check if the google sign in config is valid
