@@ -177,3 +177,8 @@ fabric.properties
 
 # Configuration file
 config.yml
+
+# SQLite database file
+*.sqlite
+*.sqlite3
+*.db
