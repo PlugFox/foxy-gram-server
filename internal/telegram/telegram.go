@@ -21,6 +21,7 @@ type Telegram struct {
 }
 
 func New(db *storage.Storage, config *config.Config, logger *slog.Logger) (*Telegram, error) {
+	// todo: restore last id from the database
 	pref := tele.Settings{
 		Token: config.Telegram.Token,
 		Poller: &tele.LongPoller{
@@ -108,6 +109,8 @@ func storeMessagesMiddleware(db *storage.Storage, onError func(error)) tele.Midd
 				go func() {
 					// TODO: save chat info too, not only the message and user
 					// pass a structure to the function
+
+					// TODO: update last message id in the database
 					err := db.UpsertMessage(converters.MessageFromTG(msg), convertUser(msg.Sender))
 					if err != nil && onError != nil {
 						onError(err)
