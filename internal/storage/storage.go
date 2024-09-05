@@ -192,7 +192,7 @@ func (s *Storage) UpsertMessage(input UpsertMessageInput) error {
 	})
 }
 
-// TODO: Problem with save batch
+// TODO: Fix problem with save batch, write test on ...interface{}
 
 // saveBatch - сохраняем данные пачками (чаты или пользователи)
 func (s *Storage) saveBatch(tx *gorm.DB, entityType string, data ...interface{}) error {
