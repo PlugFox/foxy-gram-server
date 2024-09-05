@@ -192,6 +192,8 @@ func (s *Storage) UpsertMessage(input UpsertMessageInput) error {
 	})
 }
 
+// TODO: try to merge it with generics
+
 func (s *Storage) UpsertChats(tx *gorm.DB, data ...*model.Chat) error {
 	if len(data) == 0 {
 		return nil
