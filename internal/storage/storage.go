@@ -7,6 +7,7 @@ package storage
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"time"
 
@@ -104,6 +105,22 @@ func (s *Storage) Close() error {
 	return sqlDB.Close()
 }
 
+// ClearCache - clear the cache
+func (s *Storage) ClearCache() {
+	s.cache.Clear()
+}
+
+// cacheGet - get the value from the cache
+func (s *Storage) cacheGet(key string) (interface{}, bool) {
+	value, ok := s.cache.Get(key)
+	return value, ok
+}
+
+// cacheSet - set the value to the cache
+func (s *Storage) cacheSet(key string, value interface{}) {
+	s.cache.Set(key, value, 0)
+}
+
 // UserByID - get the user by ID
 func (s *Storage) UserByID(id model.UserID) (*model.User, error) {
 	var user model.User
@@ -141,17 +158,52 @@ func (s *Storage) Users() ([]model.User, error) {
 	return users, nil
 }
 
+// Struct for the UpsertMessage function
+type UpsertMessageInput struct {
+	Message *model.Message
+	Chats   []*model.Chat
+	Users   []*model.User
+}
+
 // UpsertMessage - insert or update the message, and the users if any
-func (s *Storage) UpsertMessage(message *model.Message, users ...*model.User) error {
+func (s *Storage) UpsertMessage(input UpsertMessageInput) error {
+	if (input.Message == nil) || (input.Message.ID == 0) {
+		return nil
+	}
 	return s.db.Transaction(func(tx *gorm.DB) error {
-		if len(users) > 0 {
-			err := tx.Save(users).Error
+		for _, chat := range input.Chats {
+			if chat == nil {
+				continue
+			}
+			cacheKey := fmt.Sprintf("chat#%s", string(chat.ID))
+			_, ok := s.cacheGet(cacheKey)
+			if ok {
+				continue
+			}
+			err := tx.Save(chat).Error
 			if err != nil {
 				return err
 			}
+			s.cacheSet(cacheKey, chat)
 		}
 
-		err := tx.Save(message).Error
+		for _, user := range input.Users {
+			if user == nil {
+				continue
+			}
+			cacheKey := fmt.Sprintf("user#%s", string(user.ID))
+			_, ok := s.cacheGet(cacheKey)
+			if ok {
+				continue
+			}
+			err := tx.Save(user).Error
+			if err != nil {
+				return err
+			}
+			s.cacheSet(cacheKey, user)
+		}
+
+		err := tx.Save(input.Message).Error
 		if err != nil {
 			return err
 		}

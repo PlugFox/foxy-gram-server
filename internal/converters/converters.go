@@ -65,6 +65,16 @@ func MessageOriginFromTG(m *tele.Message) *model.MessageOrigin {
 	return origin
 }
 
+func ChatFromTG(c *tele.Chat) *model.Chat {
+	return &model.Chat{
+		ID:        model.ChatID(c.ID),
+		Type:      string(c.Type),
+		Title:     c.Title,
+		Username:  c.Username,
+		IsPrivate: c.Private,
+	}
+}
+
 // Optional: Конвертер для пользователя из сообщения
 func UserFromTG(u *tele.User) *model.User {
 	return &model.User{

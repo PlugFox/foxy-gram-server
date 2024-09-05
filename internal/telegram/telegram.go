@@ -118,7 +118,21 @@ func storeMessagesMiddleware(db *storage.Storage, onError func(error)) tele.Midd
 					// TODO: update last message id in the database
 
 					// TODO: create a in memmory cache for the last message id and other data
-					err := db.UpsertMessage(converters.MessageFromTG(msg), convertUser(msg.Sender))
+					err := db.UpsertMessage(
+						storage.UpsertMessageInput{
+							Message: converters.MessageFromTG(msg),
+							Chats: []*model.Chat{
+								converters.ChatFromTG(msg.Chat),
+								// converters.ChatFromTG(msg.SenderChat),
+								// converters.ChatFromTG(msg.OriginalChat),
+							}, Users: []*model.User{
+								converters.UserFromTG(msg.Sender).Seen(),
+								// converters.UserFromTG(msg.OriginalSender),
+								// converters.UserFromTG(msg.Via),
+								// converters.UserFromTG(msg.UserJoined),
+								// converters.UserFromTG(msg.UserLeft),
+							},
+						})
 					if err != nil && onError != nil {
 						onError(err)
 					}
