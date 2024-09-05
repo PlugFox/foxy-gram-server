@@ -206,6 +206,7 @@ func (s *Storage) saveBatch(tx *gorm.DB, entityType string, data ...interface{})
 			continue
 		}
 		var cacheKey string
+		var hash string
 
 		// Определяем тип данных для создания cacheKey
 		switch entityType {
@@ -215,21 +216,27 @@ func (s *Storage) saveBatch(tx *gorm.DB, entityType string, data ...interface{})
 				return errors.WrapUnexpectedType("*model.Chat", item)
 			}
 			cacheKey = fmt.Sprintf("chat#%s", string(chat.ID))
+			hash, _ = chat.Hash()
 		case "user":
 			user, ok := item.(*model.User)
 			if !ok {
 				return errors.WrapUnexpectedType("*model.User", item)
 			}
 			cacheKey = fmt.Sprintf("user#%s", string(user.ID))
+			hash, _ = user.Hash()
 		default:
 			return errors.WrapUnexpectedType("unknown entityType: %s", entityType)
 		}
 
+		if hash == "" {
+			return errors.WrapUnexpectedType("hash is empty", item)
+		}
+
 		// Проверяем наличие объекта в кэше
-		_, ok := s.cacheGet(cacheKey)
-		if !ok {
+		cache, ok := s.cacheGet(cacheKey)
+		if !ok || hash != cache {
 			batchToSave = append(batchToSave, item)
-			s.cacheSet(cacheKey, item)
+			s.cacheSet(cacheKey, hash)
 		}
 	}
 
