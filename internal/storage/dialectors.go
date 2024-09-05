@@ -11,6 +11,8 @@ import (
 	"gorm.io/gorm"
 )
 
+var errorUnsupportedDriver = fmt.Errorf("unsupported database driver")
+
 // createDialector creates the appropriate GORM dialector based on the config.
 func createDialector(cfg *config.DatabaseConfig) (gorm.Dialector, error) {
 	switch strings.ToLower(cfg.Driver) {
@@ -27,16 +29,15 @@ func createDialector(cfg *config.DatabaseConfig) (gorm.Dialector, error) {
 	case "tidb":
 		return mysqlDialector(cfg.Connection)
 	default:
-		return nil, fmt.Errorf("unsupported database driver: %s", cfg.Driver)
+		return nil, errorUnsupportedDriver
 	}
 }
 
 func sqliteDialector(connection string) (gorm.Dialector, error) {
 	if connection == ":memory:" {
 		return sqlite.Open("file::memory:?cache=shared"), nil
-	} else {
-		return sqlite.Open(connection), nil
 	}
+	return sqlite.Open(connection), nil
 }
 
 func postgresDialector(connection string) (gorm.Dialector, error) {
@@ -49,15 +50,17 @@ func postgresDialector(connection string) (gorm.Dialector, error) {
 }
 
 func mysqlDialector(connection string) (gorm.Dialector, error) {
+	const defaultStringSize = 256
+
 	return mysql.New(
 		mysql.Config{
 			// e.g. gorm:gorm@tcp(127.0.0.1:3306)/gorm?charset=utf8&parseTime=True&loc=Local
-			DSN:                       connection, // data source name
-			DefaultStringSize:         256,        // default size for string fields
-			DisableDatetimePrecision:  true,       // disable datetime precision, which not supported before MySQL 5.6
-			DontSupportRenameIndex:    true,       // drop & create when rename index, rename index not supported before MySQL 5.7, MariaDB
-			DontSupportRenameColumn:   true,       // `change` when rename column, rename column not supported before MySQL 8, MariaDB
-			SkipInitializeWithVersion: false,      // auto configure based on currently MySQL version
+			DSN:                       connection,        // data source name
+			DefaultStringSize:         defaultStringSize, // default size for string fields
+			DisableDatetimePrecision:  true,              // disable datetime precision, which not supported before MySQL 5.6
+			DontSupportRenameIndex:    true,              // drop & create when rename index, rename index not supported before MySQL 5.7, MariaDB
+			DontSupportRenameColumn:   true,              // `change` when rename column, rename column not supported before MySQL 8, MariaDB
+			SkipInitializeWithVersion: false,             // auto configure based on currently MySQL version
 		},
 	), nil
 }

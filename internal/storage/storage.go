@@ -170,44 +170,67 @@ func (s *Storage) UpsertMessage(input UpsertMessageInput) error {
 	if (input.Message == nil) || (input.Message.ID == 0) {
 		return nil
 	}
+
 	return s.db.Transaction(func(tx *gorm.DB) error {
-		for _, chat := range input.Chats {
-			if chat == nil {
-				continue
-			}
-			cacheKey := fmt.Sprintf("chat#%s", string(chat.ID))
-			_, ok := s.cacheGet(cacheKey)
-			if ok {
-				continue
-			}
-			err := tx.Save(chat).Error
-			if err != nil {
-				return err
-			}
-			s.cacheSet(cacheKey, chat)
+		// Сохраняем чаты
+		if err := s.saveBatch(tx, input.Chats, "chat"); err != nil {
+			return err
 		}
 
-		for _, user := range input.Users {
-			if user == nil {
-				continue
-			}
-			cacheKey := fmt.Sprintf("user#%s", string(user.ID))
-			_, ok := s.cacheGet(cacheKey)
-			if ok {
-				continue
-			}
-			err := tx.Save(user).Error
-			if err != nil {
-				return err
-			}
-			s.cacheSet(cacheKey, user)
+		// Сохраняем пользователей
+		if err := s.saveBatch(tx, input.Users, "user"); err != nil {
+			return err
 		}
 
-		err := tx.Save(input.Message).Error
-		if err != nil {
+		// Сохраняем сообщение
+		if err := tx.Save(input.Message).Error; err != nil {
 			return err
 		}
 
 		return nil
 	})
+}
+
+// saveBatch - сохраняем данные пачками (чаты или пользователи)
+func (s *Storage) saveBatch(tx *gorm.DB, data interface{}, entityType string) error {
+	// Преобразуем данные в срез интерфейсов (чаты или пользователи)
+	items, ok := data.([]interface{})
+	if !ok || len(items) == 0 {
+		return nil
+	}
+
+	var batchToSave []interface{}
+
+	// Обрабатываем кэш и отбираем только те объекты, которых нет в кэше
+	for _, item := range items {
+		if item == nil {
+			continue
+		}
+		var cacheKey string
+
+		switch entityType {
+		case "chat":
+			chat := item.(*model.Chat)
+			cacheKey = fmt.Sprintf("chat#%s", string(chat.ID))
+		case "user":
+			user := item.(*model.User)
+			cacheKey = fmt.Sprintf("user#%s", string(user.ID))
+		}
+
+		_, ok := s.cacheGet(cacheKey)
+		if !ok {
+			batchToSave = append(batchToSave, item)
+			s.cacheSet(cacheKey, item)
+		}
+	}
+
+	// Если есть что сохранять, сохраняем всё одной пачкой
+	if len(batchToSave) > 0 {
+		const batchSize = 100
+		if err := tx.CreateInBatches(batchToSave, batchSize).Error; err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
