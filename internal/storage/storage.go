@@ -13,6 +13,7 @@ import (
 
 	"github.com/dgraph-io/ristretto"
 	config "github.com/plugfox/foxy-gram-server/internal/config"
+	"github.com/plugfox/foxy-gram-server/internal/errors"
 	"github.com/plugfox/foxy-gram-server/internal/model"
 	storage_logger "github.com/plugfox/foxy-gram-server/internal/storage/storage_logger"
 	"gorm.io/gorm"
@@ -173,12 +174,12 @@ func (s *Storage) UpsertMessage(input UpsertMessageInput) error {
 
 	return s.db.Transaction(func(tx *gorm.DB) error {
 		// Сохраняем чаты
-		if err := s.saveBatch(tx, input.Chats, "chat"); err != nil {
+		if err := s.saveBatch(tx, "chat", input.Chats); err != nil {
 			return err
 		}
 
 		// Сохраняем пользователей
-		if err := s.saveBatch(tx, input.Users, "user"); err != nil {
+		if err := s.saveBatch(tx, "user", input.Users); err != nil {
 			return err
 		}
 
@@ -192,31 +193,39 @@ func (s *Storage) UpsertMessage(input UpsertMessageInput) error {
 }
 
 // saveBatch - сохраняем данные пачками (чаты или пользователи)
-func (s *Storage) saveBatch(tx *gorm.DB, data interface{}, entityType string) error {
-	// Преобразуем данные в срез интерфейсов (чаты или пользователи)
-	items, ok := data.([]interface{})
-	if !ok || len(items) == 0 {
+func (s *Storage) saveBatch(tx *gorm.DB, entityType string, data ...interface{}) error {
+	if len(data) == 0 {
 		return nil
 	}
 
 	var batchToSave []interface{}
 
 	// Обрабатываем кэш и отбираем только те объекты, которых нет в кэше
-	for _, item := range items {
+	for _, item := range data {
 		if item == nil {
 			continue
 		}
 		var cacheKey string
 
+		// Определяем тип данных для создания cacheKey
 		switch entityType {
 		case "chat":
-			chat := item.(*model.Chat)
+			chat, ok := item.(*model.Chat)
+			if !ok {
+				return errors.WrapUnexpectedType("*model.Chat", item)
+			}
 			cacheKey = fmt.Sprintf("chat#%s", string(chat.ID))
 		case "user":
-			user := item.(*model.User)
+			user, ok := item.(*model.User)
+			if !ok {
+				return errors.WrapUnexpectedType("*model.User", item)
+			}
 			cacheKey = fmt.Sprintf("user#%s", string(user.ID))
+		default:
+			return errors.WrapUnexpectedType("unknown entityType: %s", entityType)
 		}
 
+		// Проверяем наличие объекта в кэше
 		_, ok := s.cacheGet(cacheKey)
 		if !ok {
 			batchToSave = append(batchToSave, item)
