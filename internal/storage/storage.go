@@ -16,6 +16,7 @@ import (
 	"github.com/plugfox/foxy-gram-server/internal/model"
 	storage_logger "github.com/plugfox/foxy-gram-server/internal/storage/storage_logger"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 	"gorm.io/gorm/schema"
 )
 
@@ -197,7 +198,7 @@ func (s *Storage) UpsertChats(tx *gorm.DB, data ...*model.Chat) error {
 	}
 
 	updateCache := make(map[string]string)
-	var batchToSave []*model.Chat
+	batchToSave := make(map[string]*model.Chat)
 
 	var key string
 	var hash string
@@ -211,14 +212,21 @@ func (s *Storage) UpsertChats(tx *gorm.DB, data ...*model.Chat) error {
 		cache, ok := s.cacheGet(key)
 		if !ok || hash != cache {
 			updateCache[key] = hash
-			batchToSave = append(batchToSave, chat)
+			batchToSave[key] = chat
 		}
 	}
 
 	// Если есть что сохранять, сохраняем всё одной пачкой
 	if len(batchToSave) > 0 {
-		const batchSize = 100
-		if err := tx.CreateInBatches(batchToSave, batchSize).Error; err != nil {
+		if err := tx.Clauses(clause.OnConflict{UpdateAll: true}).Create(
+			func() []*model.Chat {
+				result := make([]*model.Chat, 0, len(batchToSave))
+				for _, chat := range batchToSave {
+					result = append(result, chat)
+				}
+				return result
+			}(),
+		).Error; err != nil {
 			return err
 		}
 		for key, hash := range updateCache {
@@ -235,7 +243,7 @@ func (s *Storage) UpsertUsers(tx *gorm.DB, data ...*model.User) error {
 	}
 
 	updateCache := make(map[string]string)
-	var batchToSave []*model.User
+	batchToSave := make(map[string]*model.User)
 
 	var key string
 	var hash string
@@ -249,14 +257,21 @@ func (s *Storage) UpsertUsers(tx *gorm.DB, data ...*model.User) error {
 		cache, ok := s.cacheGet(key)
 		if !ok || hash != cache {
 			updateCache[key] = hash
-			batchToSave = append(batchToSave, user)
+			batchToSave[key] = user
 		}
 	}
 
 	// Если есть что сохранять, сохраняем всё одной пачкой
 	if len(batchToSave) > 0 {
-		const batchSize = 100
-		if err := tx.CreateInBatches(batchToSave, batchSize).Error; err != nil {
+		if err := tx.Clauses(clause.OnConflict{UpdateAll: true}).Create(
+			func() []*model.User {
+				result := make([]*model.User, 0, len(batchToSave))
+				for _, user := range batchToSave {
+					result = append(result, user)
+				}
+				return result
+			}(),
+		).Error; err != nil {
 			return err
 		}
 		for key, hash := range updateCache {
