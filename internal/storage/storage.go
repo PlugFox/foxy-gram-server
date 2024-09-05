@@ -28,7 +28,7 @@ func New(config *config.Config, logger *slog.Logger) (*Storage, error) {
 	// Cache
 	const (
 		numCounters = 1e7     // number of keys to track frequency of (10M).
-		maxCost     = 1 << 30 // maximum cost of cache (1GB).
+		maxCost     = 1 << 28 // maximum cost of cache (256 MiB).
 		bufferItems = 64      // number of keys per Get buffer.
 	)
 	cache, err := ristretto.NewCache(&ristretto.Config{
