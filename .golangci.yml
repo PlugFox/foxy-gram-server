@@ -41,6 +41,10 @@ linters-settings:
   funlen:
     lines: 100
     statements: 50
+  cyclop:
+    max-complexity: 20
+    package-average: 10
+    skip-tests: true
 
 issues:
   # Excluding configuration per-path, per-linter, per-text and per-source
