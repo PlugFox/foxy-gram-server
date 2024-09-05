@@ -13,7 +13,6 @@ import (
 
 	"github.com/dgraph-io/ristretto"
 	config "github.com/plugfox/foxy-gram-server/internal/config"
-	"github.com/plugfox/foxy-gram-server/internal/errors"
 	"github.com/plugfox/foxy-gram-server/internal/model"
 	storage_logger "github.com/plugfox/foxy-gram-server/internal/storage/storage_logger"
 	"gorm.io/gorm"
@@ -174,12 +173,12 @@ func (s *Storage) UpsertMessage(input UpsertMessageInput) error {
 
 	return s.db.Transaction(func(tx *gorm.DB) error {
 		// Сохраняем чаты
-		if err := s.saveBatch(tx, "chat", input.Chats); err != nil {
+		if err := s.UpsertChats(tx, input.Chats...); err != nil {
 			return err
 		}
 
 		// Сохраняем пользователей
-		if err := s.saveBatch(tx, "user", input.Users); err != nil {
+		if err := s.UpsertUsers(tx, input.Users...); err != nil {
 			return err
 		}
 
@@ -192,55 +191,65 @@ func (s *Storage) UpsertMessage(input UpsertMessageInput) error {
 	})
 }
 
-// TODO: Fix problem with save batch, write test on ...interface{}
-// replace it with upsertChats and upsertUsers instead of saveBatch
-
-// saveBatch - сохраняем данные пачками (чаты или пользователи)
-func (s *Storage) saveBatch(tx *gorm.DB, entityType string, data ...interface{}) error {
+func (s *Storage) UpsertChats(tx *gorm.DB, data ...*model.Chat) error {
 	if len(data) == 0 {
 		return nil
 	}
 
 	updateCache := make(map[string]string)
-	var batchToSave []interface{}
+	var batchToSave []*model.Chat
 
-	// Обрабатываем кэш и отбираем только те объекты, которых нет в кэше
-	for _, item := range data {
-		if item == nil {
+	var key string
+	var hash string
+	for _, chat := range data {
+		if chat == nil {
 			continue
 		}
-		var cacheKey string
-		var hash string
 
-		// Определяем тип данных для создания cacheKey
-		switch entityType {
-		case "chat":
-			chat, ok := item.(*model.Chat)
-			if !ok {
-				return errors.WrapUnexpectedType("*model.Chat", item)
-			}
-			cacheKey = fmt.Sprintf("chat#%s", string(chat.ID))
-			hash, _ = chat.Hash()
-		case "user":
-			user, ok := item.(*model.User)
-			if !ok {
-				return errors.WrapUnexpectedType("*model.User", item)
-			}
-			cacheKey = fmt.Sprintf("user#%s", string(user.ID))
-			hash, _ = user.Hash()
-		default:
-			return errors.WrapUnexpectedType("unknown entityType: %s", entityType)
-		}
-
-		if hash == "" {
-			return errors.WrapUnexpectedType("hash is empty", item)
-		}
-
-		// Проверяем наличие объекта в кэше
-		cache, ok := s.cacheGet(cacheKey)
+		key = fmt.Sprintf("chat#%s", string(chat.ID))
+		hash, _ = chat.Hash()
+		cache, ok := s.cacheGet(key)
 		if !ok || hash != cache {
-			updateCache[cacheKey] = hash
-			batchToSave = append(batchToSave, item)
+			updateCache[key] = hash
+			batchToSave = append(batchToSave, chat)
+		}
+	}
+
+	// Если есть что сохранять, сохраняем всё одной пачкой
+	if len(batchToSave) > 0 {
+		const batchSize = 100
+		if err := tx.CreateInBatches(batchToSave, batchSize).Error; err != nil {
+			return err
+		}
+		for key, hash := range updateCache {
+			s.cacheSet(key, hash)
+		}
+	}
+
+	return nil
+}
+
+func (s *Storage) UpsertUsers(tx *gorm.DB, data ...*model.User) error {
+	if len(data) == 0 {
+		return nil
+	}
+
+	updateCache := make(map[string]string)
+	var batchToSave []*model.User
+
+	var key string
+	var hash string
+	for _, user := range data {
+		if user == nil {
+			continue
+		}
+
+		key = fmt.Sprintf("user#%s", string(user.ID))
+		hash, _ = user.Hash()
+		cache, ok := s.cacheGet(key)
+		if !ok || hash != cache {
+			updateCache[key] = hash
+			batchToSave = append(batchToSave, user)
 		}
 	}
 
