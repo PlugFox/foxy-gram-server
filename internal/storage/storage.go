@@ -193,6 +193,7 @@ func (s *Storage) UpsertMessage(input UpsertMessageInput) error {
 }
 
 // TODO: Fix problem with save batch, write test on ...interface{}
+// replace it with upsertChats and upsertUsers instead of saveBatch
 
 // saveBatch - сохраняем данные пачками (чаты или пользователи)
 func (s *Storage) saveBatch(tx *gorm.DB, entityType string, data ...interface{}) error {
@@ -200,6 +201,7 @@ func (s *Storage) saveBatch(tx *gorm.DB, entityType string, data ...interface{})
 		return nil
 	}
 
+	updateCache := make(map[string]string)
 	var batchToSave []interface{}
 
 	// Обрабатываем кэш и отбираем только те объекты, которых нет в кэше
@@ -237,8 +239,8 @@ func (s *Storage) saveBatch(tx *gorm.DB, entityType string, data ...interface{})
 		// Проверяем наличие объекта в кэше
 		cache, ok := s.cacheGet(cacheKey)
 		if !ok || hash != cache {
+			updateCache[cacheKey] = hash
 			batchToSave = append(batchToSave, item)
-			s.cacheSet(cacheKey, hash)
 		}
 	}
 
@@ -247,6 +249,9 @@ func (s *Storage) saveBatch(tx *gorm.DB, entityType string, data ...interface{})
 		const batchSize = 100
 		if err := tx.CreateInBatches(batchToSave, batchSize).Error; err != nil {
 			return err
+		}
+		for key, hash := range updateCache {
+			s.cacheSet(key, hash)
 		}
 	}
 
