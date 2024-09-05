@@ -14,6 +14,7 @@ import (
 
 	config "github.com/plugfox/foxy-gram-server/internal/config"
 	log "github.com/plugfox/foxy-gram-server/internal/log"
+	"github.com/plugfox/foxy-gram-server/internal/model"
 	storage "github.com/plugfox/foxy-gram-server/internal/storage"
 	"github.com/plugfox/foxy-gram-server/internal/telegram"
 )
@@ -55,6 +56,9 @@ func run(config *config.Config, logger *slog.Logger) error {
 	if err != nil {
 		return fmt.Errorf("setting max procs: %w", err)
 	}
+
+	// Setup hash function
+	model.InitHashFunction()
 
 	// Setup database connection
 	db, err := storage.New(config, logger)

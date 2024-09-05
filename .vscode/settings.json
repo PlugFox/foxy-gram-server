@@ -64,9 +64,8 @@
         "coverage": true,
         "build": true
     },
-    "go.testEnvFile": "${workspaceFolder}/.env",
+    /* "go.testEnvFile": "${workspaceFolder}/.env", */
     "git.autofetch": true,
-    "redhat.telemetry.enabled": false,
     "workbench.editor.enablePreview": false,
     // Causes the debug view to automatically appear when a breakpoint is hit. This
     // setting is global and not configurable per-language.
