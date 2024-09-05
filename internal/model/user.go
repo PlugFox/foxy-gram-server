@@ -1,7 +1,12 @@
 package model
 
 import (
+	"bytes"
+	"crypto/sha256"
 	"database/sql"
+	"encoding/gob"
+	"fmt"
+	"reflect"
 	"time"
 
 	"gorm.io/gorm"
@@ -30,15 +35,48 @@ type User struct {
 }
 
 // Update seen time for the user
-func (u *User) Seen() *User {
-	u.LastSeen = sql.NullTime{
+func (obj *User) Seen() *User {
+	obj.LastSeen = sql.NullTime{
 		Time:  time.Now().UTC(),
 		Valid: true,
 	}
-	return u
+	return obj
 }
 
 // TableName - set the table name
 func (User) TableName() string {
 	return "users"
+}
+
+// Hash - calculate the hash of the object
+func (obj *User) Hash() ([32]byte, error) {
+	hashable := make(map[string]interface{})
+
+	// Используем рефлексию для извлечения значений полей с тегом "hash"
+	val := reflect.ValueOf(obj)
+	typ := reflect.TypeOf(obj)
+
+	for i := 0; i < val.NumField(); i++ {
+		field := typ.Field(i)
+		_, ok := field.Tag.Lookup("hash") // Проверяем наличие тега "hash" без проверки значения
+		if ok {                           // Если тег "hash" присутствует
+			fieldValue := val.Field(i)
+			hashable[field.Name] = fieldValue.Interface()
+		}
+	}
+
+	// Сериализуем выбранные поля через gob
+	var buf bytes.Buffer
+	enc := gob.NewEncoder(&buf)
+	err := enc.Encode(hashable)
+	if err != nil {
+		return [32]byte{}, fmt.Errorf("failed to encode hashable fields: %w", err)
+	}
+
+	// Вычисляем sha256-хэш от сериализованных данных
+	hash := sha256.Sum256(buf.Bytes())
+	return hash, nil
+
+	// Возвращаем хэш в виде строки
+	// return fmt.Sprintf("%x", hash), nil
 }

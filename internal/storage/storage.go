@@ -1,3 +1,8 @@
+// Description: The storage package provides the database operations for the application.
+// The storage package uses the GORM library to interact with the database.
+//
+// https://github.com/go-gorm/gorm
+// https://github.com/dgraph-io/ristretto
 package storage
 
 import (
@@ -5,6 +10,7 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/dgraph-io/ristretto"
 	config "github.com/plugfox/foxy-gram-server/internal/config"
 	"github.com/plugfox/foxy-gram-server/internal/model"
 	storage_logger "github.com/plugfox/foxy-gram-server/internal/storage/storage_logger"
@@ -13,10 +19,40 @@ import (
 )
 
 type Storage struct {
-	db *gorm.DB
+	cache *ristretto.Cache
+	db    *gorm.DB
 }
 
 func New(config *config.Config, logger *slog.Logger) (*Storage, error) {
+	// Cache
+	const (
+		numCounters = 1e7     // number of keys to track frequency of (10M).
+		maxCost     = 1 << 30 // maximum cost of cache (1GB).
+		bufferItems = 64      // number of keys per Get buffer.
+	)
+	cache, err := ristretto.NewCache(&ristretto.Config{
+		NumCounters: numCounters,
+		MaxCost:     maxCost,
+		BufferItems: bufferItems,
+		Cost: func(value interface{}) int64 {
+			switch v := value.(type) {
+			case string:
+				return int64(len(v)) // If string, return its length in bytes
+			case []byte:
+				return int64(len(v)) // If []byte, return its length
+			case int, int64, float64:
+				const intCost = 8
+				return intCost //  int, int64, float64 - 8 bytes
+			default:
+				return 1 // minimal cost for other types (bool, struct, etc)
+			}
+		},
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	// SQL database connection
 	dialector, err := createDialector(&config.Database)
 	if err != nil {
 		return nil, err
@@ -52,11 +88,15 @@ func New(config *config.Config, logger *slog.Logger) (*Storage, error) {
 	// logger.Debug("Result of the SELECT 1 query", slog.Int("result", result))
 	// logger.Debug("Database connection established")
 
-	return &Storage{db: db}, nil
+	return &Storage{
+		cache: cache,
+		db:    db,
+	}, nil
 }
 
 // Close - close the database connection
 func (s *Storage) Close() error {
+	s.cache.Close()
 	sqlDB, err := s.db.DB()
 	if err != nil {
 		return err

@@ -1,4 +1,4 @@
-// https://github.com/tucnak/telebot
+// Library repository: https://github.com/tucnak/telebot
 
 package telegram
 
