@@ -5,6 +5,7 @@ import (
 	"github.com/plugfox/foxy-gram-server/internal/converters"
 	"github.com/plugfox/foxy-gram-server/internal/model"
 	"github.com/plugfox/foxy-gram-server/internal/storage"
+	"github.com/plugfox/foxy-gram-server/internal/utility"
 	tele "gopkg.in/telebot.v3"
 )
 
@@ -54,9 +55,21 @@ func verifyUserMiddleware(db *storage.Storage, config *config.Config, onError fu
 			}
 
 			// Verify flow
-			if _, err := c.Bot().Send(c.Chat(), "You are not verified!"); err != nil && onError != nil {
-				onError(err) // Log the error
+			captcha, err := utility.GenerateCaptcha(config.Captcha)
+			if err != nil {
+				if onError != nil {
+					onError(err) // Log the error
+				}
+				return nil
 			}
+			photo := &tele.Photo{File: tele.FromReader(captcha)}
+
+			// todo: reply with the captcha photo and inline keyboard
+
+			//c.Reply(photo, tele.ModeNone, tele.NoPreview)
+			/* if _, err := c.Bot().Send(c.Chat(), "You are not verified!"); err != nil && onError != nil {
+				onError(err) // Log the error
+			} */
 
 			return nil // Skip the current message
 		}

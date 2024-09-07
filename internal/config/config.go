@@ -15,6 +15,7 @@ type Config struct {
 	Verbose     string `yaml:"verbose" env:"VERBOSE" env-default:"warn" env-description:"Verbose mode for output: debug | info | warn | error"`
 
 	Telegram TelegramConfig `yaml:"telegram"`
+	Captcha  CaptchaConfig  `yaml:"captcha"`
 	API      APIConfig      `yaml:"api"`
 	Database DatabaseConfig `yaml:"database"`
 }
@@ -28,6 +29,12 @@ type TelegramConfig struct {
 	Whitelist []int64       `yaml:"whitelist" env:"TELEGRAM_WHITELIST" env-description:"Telegram bot whitelist"`
 	Blacklist []int64       `yaml:"blacklist" env:"TELEGRAM_BLACKLIST" env-description:"Telegram bot blacklist"`
 	IgnoreVia bool          `yaml:"ignore_via" env:"TELEGRAM_IGNORE_VIA" env-default:"false" env-description:"Ignore messages from other bots"`
+}
+
+type CaptchaConfig struct {
+	Length int `yaml:"length" env:"CAPTCHA_LENGTH" env-default:"6" env-description:"Captcha length"`
+	Width  int `yaml:"width" env:"CAPTCHA_WIDTH" env-default:"240" env-description:"Captcha image width"`
+	Height int `yaml:"height" env:"CAPTCHA_HEIGHT" env-default:"80" env-description:"Captcha image height"`
 }
 
 // API config
