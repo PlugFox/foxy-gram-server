@@ -80,6 +80,8 @@ func New(config *config.Config, logger *slog.Logger) (*Storage, error) {
 	if err := db.WithContext(ctx).AutoMigrate(
 		&model.KeyValue{},
 		&model.User{},
+		&model.VerifiedUser{},
+		&model.BannedUser{},
 		&model.Chat{},
 		&model.MessageOrigin{},
 		&model.Message{},

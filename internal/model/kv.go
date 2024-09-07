@@ -11,12 +11,17 @@ import (
 // Save value as a byte array to support any type of value with gob
 type KeyValue struct {
 	// Key-value fields
-	Key   string `gorm:"primaryKey"`
-	Value []byte `json:"value"` // Save the value as a byte array.
+	Key   string `hash:"x" gorm:"primaryKey"`
+	Value []byte `hash:"x" json:"value"` // Save the value as a byte array.
 
 	// Meta fields
 	UpdatedAt time.Time `gorm:"autoUpdateTime" json:"updated_at"` // Time when the user was last updated.
 	Extra     string    `json:"extra"`                            // Extra data for the key-value pair.
+}
+
+// TableName - set the table name
+func (KeyValue) TableName() string {
+	return "kv"
 }
 
 // Set the value to the key-value pair
