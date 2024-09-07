@@ -48,7 +48,7 @@ func MessageFromTG(m *tele.Message) *model.Message {
 	return msg
 }
 
-// Optional: Конвертер для пересланных сообщений
+// Convert telebot message to database message origin
 func MessageOriginFromTG(m *tele.Message) *model.MessageOrigin {
 	if m.OriginalSender == nil && m.OriginalChat == nil {
 		// Если сообщение не переслано
@@ -73,6 +73,7 @@ func MessageOriginFromTG(m *tele.Message) *model.MessageOrigin {
 	return origin
 }
 
+// Convert telebot chat to database chat
 func ChatFromTG(c *tele.Chat) *model.Chat {
 	if c == nil {
 		return nil
@@ -86,7 +87,7 @@ func ChatFromTG(c *tele.Chat) *model.Chat {
 	}
 }
 
-// Optional: Конвертер для пользователя из сообщения
+// Convert telebot user to database user
 func UserFromTG(u *tele.User) *model.User {
 	if u == nil {
 		return nil
