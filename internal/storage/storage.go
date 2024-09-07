@@ -6,7 +6,9 @@
 package storage
 
 import (
+	"bytes"
 	"context"
+	"encoding/gob"
 	"fmt"
 	"log/slog"
 	"time"
@@ -76,6 +78,7 @@ func New(config *config.Config, logger *slog.Logger) (*Storage, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), timeoutSeconds*time.Second)
 	defer cancel() // releases resources if slowOperation completes before timeout elapses
 	if err := db.WithContext(ctx).AutoMigrate(
+		&model.KeyValue{},
 		&model.User{},
 		&model.Chat{},
 		&model.MessageOrigin{},
@@ -217,7 +220,7 @@ func (s *Storage) UpsertChats(tx *gorm.DB, data ...*model.Chat) error {
 		}
 	}
 
-	// Если есть что сохранять, сохраняем всё одной пачкой
+	// If there are chats to save
 	if len(batchToSave) > 0 {
 		if err := tx.Clauses(clause.OnConflict{UpdateAll: true}).Create(
 			func() []*model.Chat {
@@ -263,7 +266,7 @@ func (s *Storage) UpsertUsers(tx *gorm.DB, data ...*model.User) error {
 		}
 	}
 
-	// Если есть что сохранять, сохраняем всё одной пачкой
+	// If there is something to save, save everything in one batch
 	if len(batchToSave) > 0 {
 		if err := tx.Clauses(clause.OnConflict{UpdateAll: true}).Create(
 			func() []*model.User {
@@ -282,4 +285,63 @@ func (s *Storage) UpsertUsers(tx *gorm.DB, data ...*model.User) error {
 	}
 
 	return nil
+}
+
+// KVSet sets a key-value pair
+func (s *Storage) KVSet(key string, value interface{}) error {
+	// Serialize the value using gob
+	var buffer bytes.Buffer
+	enc := gob.NewEncoder(&buffer)
+	err := enc.Encode(value)
+	if err != nil {
+		return err
+	}
+	bytes := buffer.Bytes()
+
+	// Save to cache
+	s.cache.Set(fmt.Sprintf("_kv#%s", key), bytes, int64(len(bytes)))
+
+	// Save to the database
+	kv := &model.KeyValue{
+		Key:   key,
+		Value: bytes,
+	}
+	err = s.db.Clauses(clause.OnConflict{UpdateAll: true}).Save(kv).Error
+	if err != nil {
+		s.cache.Del(fmt.Sprintf("_kv#%s", key))
+		return err
+	}
+	return nil
+}
+
+// KVDelete deletes a key-value pair
+func (s *Storage) KVDelete(key string) error {
+	// Remove from cache
+	s.cache.Del(fmt.Sprintf("_kv#%s", key))
+
+	// Remove from the database
+	return s.db.Delete(&model.KeyValue{}, "key = ?", key).Error
+}
+
+// KVGet finds a key-value pair by key
+func (s *Storage) KVGet(key string) (*model.KeyValue, error) {
+	var kv model.KeyValue
+
+	// Try to get the data from cache
+	val, _ := s.cache.Get(fmt.Sprintf("_kv#%s", key))
+	if val != nil {
+		kv.Key = key
+		kv.Value = val.([]byte)
+		return &kv, nil
+	}
+
+	// If not found in cache, fetch from the database
+	if err := s.db.First(&kv, "key = ?", key).Error; err != nil {
+		return nil, err
+	}
+
+	// Save to cache for future access
+	s.cache.Set(fmt.Sprintf("_kv#%s", key), kv.Value, int64(len(kv.Value)))
+
+	return &kv, nil
 }

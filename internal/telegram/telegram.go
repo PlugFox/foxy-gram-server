@@ -101,14 +101,17 @@ func New(db *storage.Storage, config *config.Config, logger *slog.Logger) (*Tele
 	}, nil
 }
 
+// Start the bot
 func (t *Telegram) Start() {
 	t.bot.Start()
 }
 
+// Get the bot user
 func (t *Telegram) Me() *model.User {
 	return converters.UserFromTG(t.bot.Me).Seen()
 }
 
+// Stop the bot
 func (t *Telegram) Stop() {
 	t.bot.Stop()
 }
