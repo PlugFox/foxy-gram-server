@@ -1,6 +1,6 @@
 package model
 
 type Entity interface {
-	GetID() string
+	GetID() int64
 	Hash() (string, error)
 }

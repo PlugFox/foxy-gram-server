@@ -46,6 +46,11 @@ func (User) TableName() string {
 	return "users"
 }
 
+// GetID - get the user ID
+func (c *User) GetID() int64 {
+	return int64(c.ID)
+}
+
 // Hash - calculate the hash of the object
 func (obj *User) Hash() (string, error) {
 	return utility.Hash(obj)

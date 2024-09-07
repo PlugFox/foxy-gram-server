@@ -29,6 +29,11 @@ func (Chat) TableName() string {
 	return "chats"
 }
 
+// GetID - get the chat ID
+func (c *Chat) GetID() int64 {
+	return int64(c.ID)
+}
+
 // Hash - calculate the hash of the object
 func (obj *Chat) Hash() (string, error) {
 	return utility.Hash(obj)

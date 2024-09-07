@@ -10,7 +10,12 @@ import (
 
 // Convert telebot message to database message
 func MessageFromTG(m *tele.Message) *model.Message {
-	// Конвертация времени последнего редактирования
+	// If the message is nil then return nil
+	if m == nil {
+		return nil
+	}
+
+	// Convert the last edit time
 	var lastEdit sql.NullTime
 	if m.LastEdit != 0 {
 		lastEdit = sql.NullTime{
@@ -19,7 +24,7 @@ func MessageFromTG(m *tele.Message) *model.Message {
 		}
 	}
 
-	// Создание объекта сообщения
+	// Create a new message
 	msg := &model.Message{
 		ID:          model.MessageID(m.ID),
 		SenderID:    model.UserID(m.Sender.ID),
@@ -30,11 +35,14 @@ func MessageFromTG(m *tele.Message) *model.Message {
 		Caption:     m.Caption,
 		AlbumID:     m.AlbumID,
 		IsForwarded: m.OriginalSender != nil,
+		Sender:      UserFromTG(m.Sender),
+		Chat:        ChatFromTG(m.Chat),
 	}
 
-	// Если сообщение является ответом на другое сообщение
+	// If the message is a reply
 	if m.ReplyTo != nil {
 		msg.ReplyToID = model.MessageID(m.ReplyTo.ID)
+		msg.ReplyTo = MessageFromTG(m.ReplyTo)
 	}
 
 	return msg
@@ -66,6 +74,9 @@ func MessageOriginFromTG(m *tele.Message) *model.MessageOrigin {
 }
 
 func ChatFromTG(c *tele.Chat) *model.Chat {
+	if c == nil {
+		return nil
+	}
 	return &model.Chat{
 		ID:        model.ChatID(c.ID),
 		Type:      string(c.Type),
@@ -77,6 +88,9 @@ func ChatFromTG(c *tele.Chat) *model.Chat {
 
 // Optional: Конвертер для пользователя из сообщения
 func UserFromTG(u *tele.User) *model.User {
+	if u == nil {
+		return nil
+	}
 	return &model.User{
 		ID:           model.UserID(u.ID),
 		FirstName:    u.FirstName,

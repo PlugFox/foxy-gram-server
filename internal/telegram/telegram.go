@@ -131,14 +131,14 @@ func storeMessagesMiddleware(db *storage.Storage, onError func(error)) tele.Midd
 							Message: converters.MessageFromTG(msg),
 							Chats: []*model.Chat{
 								converters.ChatFromTG(msg.Chat),
-								// converters.ChatFromTG(msg.SenderChat),
-								// converters.ChatFromTG(msg.OriginalChat),
+								converters.ChatFromTG(msg.SenderChat),
+								converters.ChatFromTG(msg.OriginalChat),
 							}, Users: []*model.User{
 								converters.UserFromTG(msg.Sender).Seen(),
-								// converters.UserFromTG(msg.OriginalSender),
-								// converters.UserFromTG(msg.Via),
-								// converters.UserFromTG(msg.UserJoined),
-								// converters.UserFromTG(msg.UserLeft),
+								converters.UserFromTG(msg.OriginalSender),
+								converters.UserFromTG(msg.Via),
+								converters.UserFromTG(msg.UserJoined),
+								converters.UserFromTG(msg.UserLeft),
 							},
 						})
 					if err != nil && onError != nil {
