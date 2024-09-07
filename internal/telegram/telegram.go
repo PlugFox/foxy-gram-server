@@ -21,7 +21,6 @@ type Telegram struct {
 }
 
 func New(db *storage.Storage, config *config.Config, logger *slog.Logger) (*Telegram, error) {
-	// todo: restore last id from the database
 	pref := tele.Settings{
 		Token: config.Telegram.Token,
 		Poller: &tele.LongPoller{
@@ -44,6 +43,11 @@ func New(db *storage.Storage, config *config.Config, logger *slog.Logger) (*Tele
 	if config.Telegram.IgnoreVia {
 		bot.Use(mw.IgnoreVia())
 	}
+
+	bot.Use(verifyUserMiddleware(db, config, func(err error) {
+		logger.Error("verify user error", slog.String("error", err.Error()))
+	}))
+
 	if config.Telegram.Whitelist != nil && len(config.Telegram.Whitelist) > 0 {
 		bot.Use(mw.Whitelist(config.Telegram.Whitelist...))
 	}
@@ -53,7 +57,7 @@ func New(db *storage.Storage, config *config.Config, logger *slog.Logger) (*Tele
 
 	// Store messages in the database
 	bot.Use(storeMessagesMiddleware(db, func(err error) {
-		logger.Error("database error", slog.String("error", err.Error()))
+		logger.Error("store message error", slog.String("error", err.Error()))
 	}))
 
 	/* bot.Use(mw.Restrict(mw.RestrictConfig{
@@ -114,42 +118,4 @@ func (t *Telegram) Me() *model.User {
 // Stop the bot
 func (t *Telegram) Stop() {
 	t.bot.Stop()
-}
-
-// storeMessages middleware - store messages in the database asynchronously
-func storeMessagesMiddleware(db *storage.Storage, onError func(error)) tele.MiddlewareFunc {
-	return func(next tele.HandlerFunc) tele.HandlerFunc {
-		return func(c tele.Context) error {
-			msg := c.Message()
-			if msg != nil {
-				go func() {
-					// TODO: save chat info too, not only the message and user
-					// pass a structure to the function
-
-					// TODO: update last message id in the database
-
-					// TODO: create a in memmory cache for the last message id and other data
-					err := db.UpsertMessage(
-						storage.UpsertMessageInput{
-							Message: converters.MessageFromTG(msg),
-							Chats: []*model.Chat{
-								converters.ChatFromTG(msg.Chat),
-								converters.ChatFromTG(msg.SenderChat),
-								converters.ChatFromTG(msg.OriginalChat),
-							}, Users: []*model.User{
-								converters.UserFromTG(msg.Sender).Seen(),
-								converters.UserFromTG(msg.OriginalSender),
-								converters.UserFromTG(msg.Via),
-								converters.UserFromTG(msg.UserJoined),
-								converters.UserFromTG(msg.UserLeft),
-							},
-						})
-					if err != nil && onError != nil {
-						onError(err)
-					}
-				}()
-			}
-			return next(c)
-		}
-	}
 }

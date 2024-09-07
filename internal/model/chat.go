@@ -1,6 +1,7 @@
 package model
 
 import (
+	"strconv"
 	"time"
 
 	"github.com/plugfox/foxy-gram-server/internal/utility"
@@ -32,6 +33,16 @@ func (Chat) TableName() string {
 // GetID - get the chat ID
 func (c *Chat) GetID() int64 {
 	return int64(c.ID)
+}
+
+// ToInt64 - get the chat ID
+func (c ChatID) ToInt64() int64 {
+	return int64(c)
+}
+
+// ToString - get the chat ID
+func (c ChatID) ToString() string {
+	return strconv.FormatInt(int64(c), 10)
 }
 
 // Hash - calculate the hash of the object

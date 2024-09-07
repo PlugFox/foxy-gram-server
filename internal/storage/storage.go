@@ -127,6 +127,11 @@ func (s *Storage) cacheSet(key string, value interface{}) {
 	s.cache.Set(key, value, 0)
 }
 
+// cacheDel - delete the value from the cache
+func (s *Storage) cacheDel(key string) {
+	s.cache.Del(key)
+}
+
 // UserByID - get the user by ID
 func (s *Storage) UserByID(id model.UserID) (*model.User, error) {
 	var user model.User
@@ -213,7 +218,7 @@ func (s *Storage) UpsertChats(tx *gorm.DB, data ...*model.Chat) error {
 			continue
 		}
 
-		key = fmt.Sprintf("chat#%s", string(chat.ID))
+		key = fmt.Sprintf("_chat#%s", chat.ID.ToString())
 		hash, _ = chat.Hash()
 		cache, ok := s.cacheGet(key)
 		if !ok || hash != cache {
@@ -259,7 +264,7 @@ func (s *Storage) UpsertUsers(tx *gorm.DB, data ...*model.User) error {
 			continue
 		}
 
-		key = fmt.Sprintf("user#%s", string(user.ID))
+		key = fmt.Sprintf("_user#%s", user.ID.ToString())
 		hash, _ = user.Hash()
 		cache, ok := s.cacheGet(key)
 		if !ok || hash != cache {
@@ -346,4 +351,108 @@ func (s *Storage) KVGet(key string) (*model.KeyValue, error) {
 	s.cache.Set(fmt.Sprintf("_kv#%s", key), kv.Value, int64(len(kv.Value)))
 
 	return &kv, nil
+}
+
+// Check if the user is verified
+func (s *Storage) IsVerifiedUser(userID model.UserID) (bool, error) {
+	cacheKey := fmt.Sprintf("_verified#%s", userID.ToString())
+	if verified, ok := s.cacheGet(cacheKey); ok {
+		return verified == true, nil
+	}
+
+	// Check existence in the database without loading the full user
+	var exists bool
+	err := s.db.Model(&model.VerifiedUser{}).
+		Select("1").
+		Where("id = ?", userID).
+		Limit(1).
+		Scan(&exists).Error
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			// If user is not found, cache and return false
+			s.cacheSet(cacheKey, false)
+			return false, nil
+		}
+		// Return error for other issues
+		return false, err
+	}
+
+	// Cache the result and return true
+	s.cacheSet(cacheKey, exists)
+	return exists, nil
+}
+
+// Check if the user is banned
+func (s *Storage) IsBannedUser(userID model.UserID) (bool, error) {
+	cacheKey := fmt.Sprintf("_banned#%s", userID.ToString())
+	if banned, ok := s.cacheGet(cacheKey); ok {
+		return banned == true, nil
+	}
+
+	// Check existence in the database without loading the full user
+	var exists bool
+	err := s.db.Model(&model.BannedUser{}).
+		Select("1").
+		Where("id = ?", userID).
+		Limit(1).
+		Scan(&exists).Error
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			// If user is not found, cache and return false
+			s.cacheSet(cacheKey, false)
+			return false, nil
+		}
+		// Return error for other issues
+		return false, err
+	}
+
+	// Cache the result and return true
+	s.cacheSet(cacheKey, exists)
+	return exists, nil
+}
+
+// Check if the user is banned
+func (s *Storage) VerifyUser(verifiedUser *model.VerifiedUser) error {
+	userId := verifiedUser.ID.ToString()
+	s.cacheSet(fmt.Sprintf("_verified#%s", userId), true)
+	s.cacheDel(fmt.Sprintf("_banned#%s", userId))
+	err := s.db.Transaction(func(tx *gorm.DB) error {
+		// Remove the user from the banned list
+		if err := tx.Delete(&model.BannedUser{}, "id = ?", verifiedUser.ID).Error; err != nil {
+			return err
+		}
+
+		// Save the verified user
+		if err := tx.Clauses(clause.OnConflict{UpdateAll: true}).Create(verifiedUser).Error; err != nil {
+			return err
+		}
+		return nil
+	})
+	if err != nil {
+		s.cacheDel(fmt.Sprintf("_verified#%s", userId))
+	}
+	return err
+}
+
+// Ban the user
+func (s *Storage) BanUser(bannedUser *model.BannedUser) error {
+	userId := bannedUser.ID.ToString()
+	s.cacheSet(fmt.Sprintf("_banned#%s", userId), true)
+	s.cacheDel(fmt.Sprintf("_verified#%s", userId))
+	err := s.db.Transaction(func(tx *gorm.DB) error {
+		// Remove the user from the verified list
+		if err := tx.Delete(&model.VerifiedUser{}, "id = ?", bannedUser.ID).Error; err != nil {
+			return err
+		}
+
+		// Save the banned user
+		if err := tx.Clauses(clause.OnConflict{UpdateAll: true}).Create(bannedUser).Error; err != nil {
+			return err
+		}
+		return nil
+	})
+	if err != nil {
+		s.cacheDel(fmt.Sprintf("_banned#%s", userId))
+	}
+	return err
 }

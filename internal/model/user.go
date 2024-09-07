@@ -2,6 +2,7 @@ package model
 
 import (
 	"database/sql"
+	"strconv"
 	"time"
 
 	"github.com/plugfox/foxy-gram-server/internal/utility"
@@ -49,6 +50,16 @@ func (User) TableName() string {
 // GetID - get the user ID
 func (c *User) GetID() int64 {
 	return int64(c.ID)
+}
+
+// ToInt64 - get the user ID
+func (c UserID) ToInt64() int64 {
+	return int64(c)
+}
+
+// ToString - get the user ID
+func (c UserID) ToString() string {
+	return strconv.FormatInt(int64(c), 10)
 }
 
 // Hash - calculate the hash of the object

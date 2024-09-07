@@ -6,6 +6,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestUserID(t *testing.T) {
+	userID := UserID(123)
+	require.Equal(t, int64(123), userID.ToInt64())
+	require.Equal(t, "123", userID.ToString())
+}
+
 func TestUserHash(t *testing.T) {
 	testcases := []struct {
 		Name         string

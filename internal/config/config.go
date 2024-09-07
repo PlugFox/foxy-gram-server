@@ -22,7 +22,8 @@ type Config struct {
 // Telegram config
 type TelegramConfig struct {
 	Token     string        `yaml:"token" env:"TELEGRAM_TOKEN" env-required:"true" env-description:"Telegram bot token"`
-	Timeout   time.Duration `yaml:"timeout" env:"TELEGRAM_TIMEOUT" env-default:"10s" env-description:"Telegram bot timeout"`
+	Timeout   time.Duration `yaml:"timeout" env:"TELEGRAM_TIMEOUT" env-default:"10s" env-description:"Telegram bot poller timeout"`
+	Chats     []int64       `yaml:"chats" env:"TELEGRAM_CHATS" env-description:"Telegram chats to listen to"`
 	Admins    []int64       `yaml:"admins" env:"TELEGRAM_ADMINS" env-description:"Telegram bot admins"`
 	Whitelist []int64       `yaml:"whitelist" env:"TELEGRAM_WHITELIST" env-description:"Telegram bot whitelist"`
 	Blacklist []int64       `yaml:"blacklist" env:"TELEGRAM_BLACKLIST" env-description:"Telegram bot blacklist"`
