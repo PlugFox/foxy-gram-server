@@ -72,7 +72,7 @@ func run(config *config.Config, logger *slog.Logger) error {
 		return fmt.Errorf("telegram bot setup error: %w", err)
 	}
 
-	db.UpsertUser(telegram.Me())
+	db.UpsertUser(telegram.Me().Seen()) // Upsert the bot user to the database
 
 	// TODO: Setup API server
 

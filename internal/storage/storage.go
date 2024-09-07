@@ -173,18 +173,18 @@ func (s *Storage) UpsertMessage(input UpsertMessageInput) error {
 	}
 
 	return s.db.Transaction(func(tx *gorm.DB) error {
-		// Сохраняем чаты
+		// Save chats
 		if err := s.UpsertChats(tx, input.Chats...); err != nil {
 			return err
 		}
 
-		// Сохраняем пользователей
+		// Save users
 		if err := s.UpsertUsers(tx, input.Users...); err != nil {
 			return err
 		}
 
-		// Сохраняем сообщение
-		if err := tx.Save(input.Message).Error; err != nil {
+		// Save the message
+		if err := tx.Clauses(clause.OnConflict{UpdateAll: true}).Save(input.Message).Error; err != nil {
 			return err
 		}
 
@@ -192,8 +192,7 @@ func (s *Storage) UpsertMessage(input UpsertMessageInput) error {
 	})
 }
 
-// TODO: try to merge it with generics
-
+// Upsert chats if any of them have changed
 func (s *Storage) UpsertChats(tx *gorm.DB, data ...*model.Chat) error {
 	if len(data) == 0 {
 		return nil
@@ -239,6 +238,7 @@ func (s *Storage) UpsertChats(tx *gorm.DB, data ...*model.Chat) error {
 	return nil
 }
 
+// Upsert users if any of them have changed
 func (s *Storage) UpsertUsers(tx *gorm.DB, data ...*model.User) error {
 	if len(data) == 0 {
 		return nil
