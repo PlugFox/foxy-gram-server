@@ -150,15 +150,3 @@ func storeMessagesMiddleware(db *storage.Storage, onError func(error)) tele.Midd
 		}
 	}
 }
-
-func convertUser(u *tele.User) *model.User {
-	return &model.User{
-		ID:           model.UserID(u.ID),
-		FirstName:    u.FirstName,
-		LastName:     u.LastName,
-		Username:     u.Username,
-		LanguageCode: u.LanguageCode,
-		IsPremium:    u.IsPremium,
-		IsBot:        u.IsBot,
-	}
-}
