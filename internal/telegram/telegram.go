@@ -3,12 +3,18 @@
 package telegram
 
 import (
+	"context"
+	"fmt"
 	"log/slog"
+	"net"
+	"net/http"
+	"strconv"
 
 	config "github.com/plugfox/foxy-gram-server/internal/config"
 	"github.com/plugfox/foxy-gram-server/internal/converters"
 	"github.com/plugfox/foxy-gram-server/internal/model"
 	"github.com/plugfox/foxy-gram-server/internal/storage"
+	"golang.org/x/net/proxy"
 
 	log "github.com/plugfox/foxy-gram-server/internal/log"
 	tele "gopkg.in/telebot.v3"
@@ -21,8 +27,13 @@ type Telegram struct {
 }
 
 func New(db *storage.Storage, config *config.Config, logger *slog.Logger) (*Telegram, error) {
+	httpClient, err := initSocks5Client(&config.Telegram.Proxy)
+	if err != nil {
+		return nil, err
+	}
 	pref := tele.Settings{
-		Token: config.Telegram.Token,
+		Token:  config.Telegram.Token,
+		Client: httpClient,
 		Poller: &tele.LongPoller{
 			Timeout: config.Telegram.Timeout,
 		},
@@ -118,4 +129,25 @@ func (t *Telegram) Me() *model.User {
 // Stop the bot
 func (t *Telegram) Stop() {
 	t.bot.Stop()
+}
+
+func initSocks5Client(config *config.TelegramProxyConfig) (*http.Client, error) {
+	if config == nil || config.Address == "" || config.Port == 0 {
+		return nil, nil
+	}
+	addr := fmt.Sprintf("%s:%s", config.Address, strconv.Itoa(config.Port))
+	var auth *proxy.Auth
+	if config.Username != "" && config.Password != "" {
+		auth = &proxy.Auth{User: config.Username, Password: config.Password}
+	}
+	dialer, err := proxy.SOCKS5("tcp", addr, auth, proxy.Direct)
+	if err != nil {
+		return nil, fmt.Errorf("cannot init socks5 proxy client dialer: %w", err)
+	}
+	httpTransport := &http.Transport{}
+	httpClient := &http.Client{Transport: httpTransport}
+	httpTransport.DialContext = func(_ context.Context, network, address string) (net.Conn, error) {
+		return dialer.Dial(network, address)
+	}
+	return httpClient, nil
 }
