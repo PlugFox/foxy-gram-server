@@ -52,6 +52,7 @@ func verifyUserMiddleware(db *storage.Storage, config *config.Config, onError fu
 			defer c.Delete() // Delete the message, because the user is not verified
 			bot := c.Bot()
 			// todo: refactoring, add buttons with captcha emojies callback data
+			// Kick user if make wrong answer
 			go func() {
 				banned, err := db.IsBannedUser(model.UserID(sender.ID))
 				if err != nil && onError != nil {
