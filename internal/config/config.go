@@ -33,8 +33,8 @@ type TelegramConfig struct {
 
 type CaptchaConfig struct {
 	Length int `yaml:"length" env:"CAPTCHA_LENGTH" env-default:"6" env-description:"Captcha length"`
-	Width  int `yaml:"width" env:"CAPTCHA_WIDTH" env-default:"240" env-description:"Captcha image width"`
-	Height int `yaml:"height" env:"CAPTCHA_HEIGHT" env-default:"80" env-description:"Captcha image height"`
+	Width  int `yaml:"width" env:"CAPTCHA_WIDTH" env-default:"480" env-description:"Captcha image width"`
+	Height int `yaml:"height" env:"CAPTCHA_HEIGHT" env-default:"180" env-description:"Captcha image height"`
 }
 
 // API config

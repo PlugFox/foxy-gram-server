@@ -382,40 +382,35 @@ func (s *Storage) IsVerifiedUser(userID model.UserID) (bool, error) {
 	return exists, nil
 }
 
-// Check if the user is banned
+// Check if the user is banned and delete expired bans
 func (s *Storage) IsBannedUser(userID model.UserID) (bool, error) {
-	cacheKey := fmt.Sprintf("_banned#%s", userID.ToString())
-	if banned, ok := s.cacheGet(cacheKey); ok {
-		return banned == true, nil
-	}
-
-	// Check existence in the database without loading the full user
-	var exists bool
+	var bannedUser model.BannedUser
 	err := s.db.Model(&model.BannedUser{}).
-		Select("1").
 		Where("id = ?", userID).
-		Limit(1).
-		Scan(&exists).Error
-	if err != nil {
-		if err == gorm.ErrRecordNotFound {
-			// If user is not found, cache and return false
-			s.cacheSet(cacheKey, false)
-			return false, nil
-		}
-		// Return error for other issues
-		return false, err
+		First(&bannedUser).Error
+	if err == gorm.ErrRecordNotFound {
+		return true, nil // User is not banned
+	} else if err != nil {
+		return false, err // Return error for other issues
 	}
 
-	// Cache the result and return true
-	s.cacheSet(cacheKey, exists)
-	return exists, nil
+	// Check if the ban has expired
+	if bannedUser.ExpiresAt.Valid && bannedUser.ExpiresAt.Time.Before(time.Now()) {
+		// If the ban has expired, delete the record
+		if err := s.db.Delete(&bannedUser).Error; err != nil {
+			return false, err
+		}
+		return false, nil // User is not banned anymore
+	}
+
+	// User is banned and the ban is still valid
+	return true, nil
 }
 
 // Check if the user is banned
 func (s *Storage) VerifyUser(verifiedUser *model.VerifiedUser) error {
 	userId := verifiedUser.ID.ToString()
 	s.cacheSet(fmt.Sprintf("_verified#%s", userId), true)
-	s.cacheDel(fmt.Sprintf("_banned#%s", userId))
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		// Remove the user from the banned list
 		if err := tx.Delete(&model.BannedUser{}, "id = ?", verifiedUser.ID).Error; err != nil {
@@ -436,9 +431,6 @@ func (s *Storage) VerifyUser(verifiedUser *model.VerifiedUser) error {
 
 // Ban the user
 func (s *Storage) BanUser(bannedUser *model.BannedUser) error {
-	userId := bannedUser.ID.ToString()
-	s.cacheSet(fmt.Sprintf("_banned#%s", userId), true)
-	s.cacheDel(fmt.Sprintf("_verified#%s", userId))
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		// Remove the user from the verified list
 		if err := tx.Delete(&model.VerifiedUser{}, "id = ?", bannedUser.ID).Error; err != nil {
@@ -451,8 +443,5 @@ func (s *Storage) BanUser(bannedUser *model.BannedUser) error {
 		}
 		return nil
 	})
-	if err != nil {
-		s.cacheDel(fmt.Sprintf("_banned#%s", userId))
-	}
 	return err
 }

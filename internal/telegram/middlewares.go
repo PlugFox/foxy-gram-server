@@ -1,6 +1,10 @@
 package telegram
 
 import (
+	"bytes"
+	"fmt"
+	"time"
+
 	config "github.com/plugfox/foxy-gram-server/internal/config"
 	"github.com/plugfox/foxy-gram-server/internal/converters"
 	"github.com/plugfox/foxy-gram-server/internal/model"
@@ -12,64 +16,173 @@ import (
 func verifyUserMiddleware(db *storage.Storage, config *config.Config, onError func(error)) tele.MiddlewareFunc {
 	return func(next tele.HandlerFunc) tele.HandlerFunc {
 		return func(c tele.Context) error {
-			userId := c.Sender().ID
-			chatId := c.Chat().ID
-			if userId == 0 || chatId == 0 {
-				return next(c) // Proceed to the next middleware if the user ID or chat ID is not available
+			if c.Callback() != nil {
+				return next(c) // Thats a callback, proceed to the next middleware / handler
 			}
 
-			chatFound := false
-			if config.Telegram.Chats != nil && len(config.Telegram.Chats) > 0 {
-				for _, id := range config.Telegram.Chats {
-					if id == chatId {
-						chatFound = true
-					}
-				}
-				if !chatFound {
-					return next(c) // Proceed to the next middleware if the chat is not in the list of allowed chats
-				}
+			sender := c.Sender()
+			chat := c.Chat()
+
+			if sender.ID == 0 || chat.ID == 0 || sender.ID == chat.ID || sender.IsBot || chat.Private {
+				return nil // Ignore if the user ID or chat ID is not available or thats a PM
 			}
 
-			verified, err := db.IsVerifiedUser(model.UserID(userId))
+			verified, err := db.IsVerifiedUser(model.UserID(sender.ID))
 			if err != nil && onError != nil {
 				onError(err) // Log the error
-			}
-
-			if verified {
+			} else if verified {
 				return next(c) // Proceed to the next middleware if the user is verified
 			}
 
-			c.Delete() // Delete the message if the user is not verified
-
-			banned, err := db.IsBannedUser(model.UserID(userId))
-			if err != nil && onError != nil {
-				onError(err) // Log the error
+			// Should we verify the user in this chat?
+			if config.Telegram.Chats != nil && len(config.Telegram.Chats) > 0 {
+				found := false
+				for _, id := range config.Telegram.Chats {
+					if id != chat.ID {
+						found = true
+						break
+					}
+				}
+				if !found {
+					return nil // Skip the current message if the chat is not in the list
+				}
 			}
 
-			if banned {
-				// Ban the user
-				if err = c.Bot().Ban(c.Chat(), &tele.ChatMember{User: c.Sender()}, true); err != nil && onError != nil {
+			// Verify the user asynchronously
+			defer c.Delete() // Delete the message, because the user is not verified
+			bot := c.Bot()
+			// todo: refactoring, add buttons with captcha emojies callback data
+			go func() {
+				banned, err := db.IsBannedUser(model.UserID(sender.ID))
+				if err != nil && onError != nil {
 					onError(err) // Log the error
 				}
-				return nil // Skip the current message
-			}
 
-			// Verify flow
-			captcha, err := utility.GenerateCaptcha(config.Captcha)
-			if err != nil {
-				if onError != nil {
+				if banned {
+					// Ban the user
+					if err = bot.Ban(chat, &tele.ChatMember{User: sender}, true); err != nil && onError != nil {
+						onError(err) // Log the error
+					}
+					return // Skip the current message
+				}
+
+				// Verify flow: reply with the captcha photo and inline keyboard
+				var caption string
+				if username := sender.Username; username != "" {
+					caption = fmt.Sprintf("@%s, please solve the captcha.\nReply with the code in the image.", username)
+				} else if firstName := sender.FirstName; firstName != "" {
+					caption = "%s, please solve the captcha.\nReply with the code in the image."
+				} else {
+					caption = "Please solve the captcha.\nReply with the code in the image."
+				}
+				captchaBuffer := new(bytes.Buffer)
+				defer captchaBuffer.Reset()
+				captchaPtr, err := utility.GenerateCaptcha(config.Captcha, captchaBuffer)
+				if err != nil {
+					if onError != nil {
+						onError(err) // Log the error
+					}
+					return // Skip the current message
+				}
+
+				refreshBtn := tele.InlineButton{Text: "Refresh 🔄", Unique: "refresh_captcha"}
+				cancelBtn := tele.InlineButton{Text: "Cancel ❌", Unique: "cancel_captcha"}
+
+				reply, err := bot.Send(chat, &tele.Photo{
+					File:    tele.FromReader(captchaBuffer),
+					Width:   captchaPtr.Width,
+					Height:  captchaPtr.Height,
+					Caption: caption,
+				}, &tele.SendOptions{
+					ReplyMarkup: &tele.ReplyMarkup{
+						ForceReply: true,
+						Selective:  sender.Username != "",
+						InlineKeyboard: [][]tele.InlineButton{
+							{cancelBtn, refreshBtn},
+							{
+								tele.InlineButton{Text: "12", Unique: "1", Data: "12"},
+								tele.InlineButton{Text: "34", Unique: "2", Data: "34"},
+							},
+							{
+								tele.InlineButton{Text: "56", Unique: "3", Data: "56"},
+								tele.InlineButton{Text: "78", Unique: "4", Data: "78"},
+							},
+						},
+					},
+				})
+				if err != nil && onError != nil {
 					onError(err) // Log the error
 				}
-				return nil
-			}
-			photo := &tele.Photo{File: tele.FromReader(captcha)}
 
-			// todo: reply with the captcha photo and inline keyboard
+				// Schedule the deletion of the captcha message
+				timer := time.AfterFunc(captchaPtr.Expiration, func() {
+					bot.Delete(reply)
+				})
 
-			//c.Reply(photo, tele.ModeNone, tele.NoPreview)
-			/* if _, err := c.Bot().Send(c.Chat(), "You are not verified!"); err != nil && onError != nil {
-				onError(err) // Log the error
-			} */
+				// Handle button events
+				bot.Handle(&cancelBtn, func(c tele.Context) error {
+					if sender.ID != c.Sender().ID {
+						c.Respond(&tele.CallbackResponse{
+							Text:      "Only the sender can cancel the captcha.",
+							ShowAlert: false,
+						})
+						return nil // Skip the current event if the sender is not the same
+					}
+					timer.Stop() // Stop the deletion timer
+					c.Delete()   // Delete the captcha message
+					c.Respond(&tele.CallbackResponse{
+						Text:      "Captcha canceled.",
+						ShowAlert: false,
+					})
+					return nil
+				})
+
+				// Handle the refresh button
+				bot.Handle(&refreshBtn, func(c tele.Context) error {
+					if sender.ID != c.Sender().ID {
+						c.Respond(&tele.CallbackResponse{
+							Text:      "Only the sender can refresh the captcha.",
+							ShowAlert: false,
+						})
+						return nil // Skip the current event if the sender is not the same
+					}
+					timer.Stop() // Stop the deletion timer
+					captchaBuffer := new(bytes.Buffer)
+					defer captchaBuffer.Reset()
+					if err := captchaPtr.Refresh(captchaBuffer); err != nil {
+						if onError != nil {
+							onError(err) // Log the error
+						}
+						return nil
+					}
+					c.Edit(&tele.Photo{
+						File:   tele.FromReader(captchaBuffer),
+						Width:  captchaPtr.Width,
+						Height: captchaPtr.Height,
+						/* Caption: caption, */
+					}, &tele.ReplyMarkup{
+						ForceReply: true,
+						Selective:  sender.Username != "",
+						InlineKeyboard: [][]tele.InlineButton{
+							{cancelBtn, refreshBtn},
+							{
+								tele.InlineButton{Text: "12", Unique: "1"},
+								tele.InlineButton{Text: "34", Unique: "2"},
+							},
+							{
+								tele.InlineButton{Text: "56", Unique: "3"},
+								tele.InlineButton{Text: "78", Unique: "4"},
+							},
+						},
+					})
+					timer.Reset(captchaPtr.Expiration) // Reset the deletion timer
+					c.Respond(&tele.CallbackResponse{
+						Text:      "Captcha refreshed.",
+						ShowAlert: false,
+					})
+					return nil
+				})
+			}()
 
 			return nil // Skip the current message
 		}
