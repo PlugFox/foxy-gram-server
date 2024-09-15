@@ -23,6 +23,17 @@ func verifyUserMiddleware(db *storage.Storage, config *config.Config, onError fu
 			sender := c.Sender()
 			chat := c.Chat()
 
+			// Check if the user is admin or the chat is private
+			/* if chat != nil {
+				member, err := c.Bot().ChatMemberOf(chat, sender)
+				if err == nil {
+					isAdmin := member.Role == tele.Creator || member.Role == tele.Administrator
+					if isAdmin || chat.Private {
+						return next(c) // Proceed to the next middleware if the user is admin or the chat is private
+					}
+				}
+			} */
+
 			if sender.ID == 0 || chat.ID == 0 || sender.ID == chat.ID || sender.IsBot || chat.Private {
 				return nil // Ignore if the user ID or chat ID is not available or thats a PM
 			}
@@ -38,7 +49,7 @@ func verifyUserMiddleware(db *storage.Storage, config *config.Config, onError fu
 			if config.Telegram.Chats != nil && len(config.Telegram.Chats) > 0 {
 				found := false
 				for _, id := range config.Telegram.Chats {
-					if id != chat.ID {
+					if id == chat.ID {
 						found = true
 						break
 					}

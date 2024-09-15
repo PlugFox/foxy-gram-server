@@ -47,7 +47,6 @@ func New(db *storage.Storage, config *config.Config, logger *slog.Logger) (*Tele
 	bot.Use(verifyUserMiddleware(db, config, func(err error) {
 		logger.Error("verify user error", slog.String("error", err.Error()))
 	}))
-
 	if config.Telegram.Whitelist != nil && len(config.Telegram.Whitelist) > 0 {
 		bot.Use(mw.Whitelist(config.Telegram.Whitelist...))
 	}
@@ -87,6 +86,11 @@ func New(db *storage.Storage, config *config.Config, logger *slog.Logger) (*Tele
 	// tele.OnUserJoined
 	// Verify the user is passing the captcha or sending the code with buttons
 	// check out examples at the github
+
+	/* bot.Handle("/id", func(c tele.Context) error {
+		c.Reply(fmt.Sprintf("Your ID: `%d`\nChat ID: `%d`", c.Sender().ID, c.Chat().ID), tele.ModeMarkdownV2)
+		return nil
+	}) */
 
 	// On text message
 	bot.Handle(tele.OnText, func(_ tele.Context) error {

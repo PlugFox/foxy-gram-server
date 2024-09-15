@@ -389,7 +389,7 @@ func (s *Storage) IsBannedUser(userID model.UserID) (bool, error) {
 		Where("id = ?", userID).
 		First(&bannedUser).Error
 	if err == gorm.ErrRecordNotFound {
-		return true, nil // User is not banned
+		return false, nil // User is not banned
 	} else if err != nil {
 		return false, err // Return error for other issues
 	}
