@@ -8,6 +8,9 @@ import (
 	"github.com/plugfox/foxy-gram-server/internal/config"
 )
 
+// idLength is the length of the captcha id to be used in generators.
+const idLength = 20
+
 // Captcha represents a captcha with an image and expiration time.
 type Captcha struct {
 	Digits     []byte
@@ -21,7 +24,7 @@ type Captcha struct {
 // GenerateCaptcha generates a new captcha with the given configuration.
 func GenerateCaptcha(config config.CaptchaConfig, writer io.Writer) (*Captcha, error) {
 	digits := captcha.RandomDigits(config.Length)
-	_, err := captcha.NewImage(string(captcha.RandomDigits(20)), digits, config.Width, config.Height).WriteTo(writer)
+	_, err := captcha.NewImage(string(captcha.RandomDigits(idLength)), digits, config.Width, config.Height).WriteTo(writer)
 	if err != nil {
 		return nil, err
 	}
@@ -30,8 +33,8 @@ func GenerateCaptcha(config config.CaptchaConfig, writer io.Writer) (*Captcha, e
 		Length:     config.Length,
 		Width:      config.Width,
 		Height:     config.Height,
-		Expiration: captcha.Expiration,
-		ExpiresAt:  time.Now().Add(captcha.Expiration),
+		Expiration: config.Expiration,
+		ExpiresAt:  time.Now().Add(config.Expiration),
 	}, nil
 }
 
@@ -43,11 +46,10 @@ func VerifyCaptcha(id string, digits []byte) bool {
 // Refresh renews the captcha image and expiration time.
 func (c *Captcha) Refresh(writer io.Writer) error {
 	c.Digits = captcha.RandomDigits(c.Length)
-	_, err := captcha.NewImage(string(captcha.RandomDigits(20)), c.Digits, c.Width, c.Height).WriteTo(writer)
+	_, err := captcha.NewImage(string(captcha.RandomDigits(idLength)), c.Digits, c.Width, c.Height).WriteTo(writer)
 	if err != nil {
 		return err
 	}
-	c.Expiration = captcha.Expiration
 	c.ExpiresAt = time.Now().Add(c.Expiration)
 	return nil
 }

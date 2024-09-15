@@ -22,19 +22,29 @@ type Config struct {
 
 // Telegram config
 type TelegramConfig struct {
-	Token     string        `yaml:"token" env:"TELEGRAM_TOKEN" env-required:"true" env-description:"Telegram bot token"`
-	Timeout   time.Duration `yaml:"timeout" env:"TELEGRAM_TIMEOUT" env-default:"10s" env-description:"Telegram bot poller timeout"`
-	Chats     []int64       `yaml:"chats" env:"TELEGRAM_CHATS" env-description:"Telegram chats to listen to"`
-	Admins    []int64       `yaml:"admins" env:"TELEGRAM_ADMINS" env-description:"Telegram bot admins"`
-	Whitelist []int64       `yaml:"whitelist" env:"TELEGRAM_WHITELIST" env-description:"Telegram bot whitelist"`
-	Blacklist []int64       `yaml:"blacklist" env:"TELEGRAM_BLACKLIST" env-description:"Telegram bot blacklist"`
-	IgnoreVia bool          `yaml:"ignore_via" env:"TELEGRAM_IGNORE_VIA" env-default:"false" env-description:"Ignore messages from other bots"`
+	Token     string              `yaml:"token" env:"TELEGRAM_TOKEN" env-required:"true" env-description:"Telegram bot token"`
+	Timeout   time.Duration       `yaml:"timeout" env:"TELEGRAM_TIMEOUT" env-default:"10s" env-description:"Telegram bot poller timeout"`
+	Chats     []int64             `yaml:"chats" env:"TELEGRAM_CHATS" env-description:"Telegram chats to listen to"`
+	Admins    []int64             `yaml:"admins" env:"TELEGRAM_ADMINS" env-description:"Telegram bot admins"`
+	Whitelist []int64             `yaml:"whitelist" env:"TELEGRAM_WHITELIST" env-description:"Telegram bot whitelist"`
+	Blacklist []int64             `yaml:"blacklist" env:"TELEGRAM_BLACKLIST" env-description:"Telegram bot blacklist"`
+	IgnoreVia bool                `yaml:"ignore_via" env:"TELEGRAM_IGNORE_VIA" env-default:"false" env-description:"Ignore messages from other bots"`
+	Proxy     TelegramProxyConfig `yaml:"proxy" env-description:"Proxy SOCKS5 server config"`
+}
+
+// Proxy SOCKS5 server config
+type TelegramProxyConfig struct {
+	Address  string `yaml:"address" env:"TELEGRAM_PROXY_ADDRESS" env-description:"Proxy server host address"`
+	Port     int    `yaml:"port" env:"TELEGRAM_PROXY_PORT" env-description:"Proxy server port"`
+	Username string `yaml:"username" env:"TELEGRAM_PROXY_USERNAME" env-description:"Proxy server username"`
+	Password string `yaml:"password" env:"TELEGRAM_PROXY_PASSWORD" env-description:"Proxy server password"`
 }
 
 type CaptchaConfig struct {
-	Length int `yaml:"length" env:"CAPTCHA_LENGTH" env-default:"6" env-description:"Captcha length"`
-	Width  int `yaml:"width" env:"CAPTCHA_WIDTH" env-default:"480" env-description:"Captcha image width"`
-	Height int `yaml:"height" env:"CAPTCHA_HEIGHT" env-default:"180" env-description:"Captcha image height"`
+	Length     int           `yaml:"length" env:"CAPTCHA_LENGTH" env-default:"6" env-description:"Captcha length"`
+	Width      int           `yaml:"width" env:"CAPTCHA_WIDTH" env-default:"480" env-description:"Captcha image width"`
+	Height     int           `yaml:"height" env:"CAPTCHA_HEIGHT" env-default:"180" env-description:"Captcha image height"`
+	Expiration time.Duration `yaml:"expiration" env:"CAPTCHA_EXPIRATION" env-default:"10m" env-description:"Captcha expiration time"`
 }
 
 // API config
