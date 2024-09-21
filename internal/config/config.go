@@ -91,16 +91,18 @@ func MustLoadConfig() (*Config, error) {
 		} */
 	}
 
-	// Check if config file exists
-	if _, err := os.Stat(configPath); os.IsNotExist(err) {
-		return nil, &Error{
-			Message: fmt.Sprintf("Config file does not exist: %s", configPath),
-		}
-	}
-
 	var config Config
 
-	if err := cleanenv.ReadConfig(configPath, &config); err != nil {
+	// Check if config file exists
+	_, err := os.Stat(configPath)
+
+	if os.IsNotExist(err) {
+		err = cleanenv.ReadEnv(&config)
+	} else if err == nil {
+		err = cleanenv.ReadConfig(configPath, &config)
+	}
+
+	if err != nil {
 		return nil, &Error{
 			Message: fmt.Sprintf("Cannot read config file: %s", err),
 		}
