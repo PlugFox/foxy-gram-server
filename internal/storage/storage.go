@@ -65,12 +65,7 @@ func New(config *config.Config, log *slog.Logger) (*Storage, error) {
 	}
 
 	// Log SQL queries if enabled
-	var dbLogger *storage_logger.GormSlogLogger
-	if config.Database.Logging {
-		dbLogger = storage_logger.NewGormSlogLogger(log)
-	}
-
-	dbLogger = storage_logger.NewGormSlogLogger(log)
+	dbLogger := storage_logger.NewGormSlogLogger(log)
 	if config.Database.Logging {
 		dbLogger.LogMode(logger.Info)
 	} else {
