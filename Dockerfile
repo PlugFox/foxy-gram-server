@@ -19,7 +19,7 @@ FROM base AS build
 RUN --mount=target=. \
     --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \
-    go build -ldflags="-w -s" -o /app/foxygram ./cmd/*.go
+    go build -ldflags="-w -s" -o /app/foxygram ./cmd/main.go
 
 # Import the binary from build stage
 

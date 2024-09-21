@@ -21,6 +21,7 @@ out/
 *.test
 
 # Output of the go coverage tool, specifically when used with LiteIDE
+coverage.html
 *.out
 
 # Dependency directories (remove the comment below to include it)
@@ -171,3 +172,14 @@ fabric.properties
 
 # Editor-based Rest Client
 .idea/httpRequests
+
+# Environment-specific values
+.env
+
+# Configuration file
+config.yml
+
+# SQLite database file
+*.sqlite
+*.sqlite3
+*.db

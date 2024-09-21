@@ -1,0 +1,134 @@
+name: CI
+
+on:
+  #workflow_dispatch:
+  #  inputs:
+  #    version:
+  #      description: "Semver version to deploy"
+  #      required: false
+  pull_request:
+    branches:
+      - master
+      - develop
+      - feature/**
+      - hotfix/**
+      - release/**
+      - bugfix/**
+      - support/**
+    paths:
+      - "go.mod"
+      - "go.sum"
+      - ".github/**.yaml"
+      - ".github/**.yml"
+      - "api/**.go"
+      - "cmd/**.go"
+      - "internal/**.go"
+      - "pkg/**.go"
+      - "Dockerfile"
+  push:
+    branches:
+      - master
+    tags:
+      - "v[0-9]+.[0-9]+.[0-9]+*"
+
+jobs:
+  test:
+    name: ⏳ Check code quality and run tests
+    strategy:
+      matrix:
+        os:
+          - ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    env:
+      go-version: 1.23.x
+
+    steps:
+      - name: 📦 Checkout the repo
+        uses: actions/checkout@v4
+
+      - name: 🐹 Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.go-version }}
+
+      - name: 👷 Downloads the dependencies
+        timeout-minutes: 5
+        run: |
+          go mod download
+
+      - name: 📈 Lints all code with golangci-lint
+        timeout-minutes: 5
+        run: |
+          go fmt ./...
+          go run github.com/golangci/golangci-lint/cmd/golangci-lint run --issues-exit-code 1 --timeout 5m
+
+      - name: 🧪 Run tests
+        timeout-minutes: 5
+        run: |
+          go test -race -covermode=atomic -coverprofile=coverage.out -coverpkg=./... ./...
+          go tool cover -html=coverage.out -o coverage.html
+
+      - name: 📥 Upload coverage report
+        timeout-minutes: 5
+        if: ${{ github.actor != 'dependabot[bot]' }}
+        uses: codecov/codecov-action@v4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: coverage.out
+
+      #- name: 📊 Check code coverage
+      #  run: |
+      #    coverage=$(go tool cover -func=coverage.out | grep total | awk '{print $3}' | sed 's/%//')
+      #    echo "Code coverage is $coverage%"
+      #    if [ $coverage -lt $test-threshold ]; then
+      #      echo "Code coverage is below the threshold of $test-threshold%"
+      #      exit 1
+      #    fi
+
+      #- name: Vulnerability check
+      #  run: |
+      #    go install golang.org/x/vuln/cmd/govulncheck@latest
+      #    govulncheck ./...
+
+  deploy:
+    name: 🚀 Deploy
+    needs:
+      - test
+    runs-on: ubuntu-latest
+    if: github.actor != 'dependabot[bot]' && (github.ref_name == 'main' || startsWith(github.ref, 'refs/tags') == true)
+    timeout-minutes: 30
+    env:
+      docker-image: ${{ secrets.DOCKER_HUB_USERNAME }}/foxy-gram-server
+
+    steps:
+      - name: 📦 Checkout the repo
+        uses: actions/checkout@v4
+
+      - name: 🔢 Version
+        id: version
+        run: |
+          SEM_VERSION="${GITHUB_REF#refs/tags/v}"
+          BUILD_VERSION=$(date +%s)
+          VERSION="${SEM_VERSION}+${BUILD_VERSION}"
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+          echo "Version set to $VERSION"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_HUB_USERNAME }}
+          password: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
+
+      - name: Build and push image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          platforms: linux/arm64, linux/amd64
+          push: true
+          tags: ${{ env.docker-image }}:latest, ${{ env.docker-image }}:${{ steps.version.outputs.VERSION }}
