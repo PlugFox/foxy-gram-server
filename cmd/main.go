@@ -31,8 +31,6 @@ func main() {
 		os.Exit(1)
 	}
 
-	// log := logger.SetupLogger(config.Environment)
-
 	// Logger configuration
 	logger := log.New(
 		log.WithLevel(config.Verbose),
