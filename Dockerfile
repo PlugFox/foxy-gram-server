@@ -1,30 +1,43 @@
-# syntax = docker/dockerfile:1.4
+# Use the official Golang image as the base image
+FROM --platform=$BUILDPLATFORM golang:1.23.0 AS base
 
-# get modules, if they don't change the cache can be used for faster builds
-FROM golang:1.23.0 AS base
+# Build arguments provided by Docker Buildx
+ARG TARGETOS
+ARG TARGETARCH
+ARG TARGETVARIANT
+
+# Set Go environment variables dynamically
 ENV GO111MODULE=on
 ENV CGO_ENABLED=0
-ENV GOOS=linux
-ENV GOARCH=amd64
+ENV GOOS=$TARGETOS
+ENV GOARCH=$TARGETARCH
+
 WORKDIR /src
+
+# Copy Go modules
 COPY go.* .
+
+# Download dependencies
 RUN --mount=type=cache,target=/go/pkg/mod \
     go mod download
 
-# build th application
+# Build the application
 FROM base AS build
-# temp mount all files instead of loading into image with COPY
-# temp mount module cache
-# temp mount go build cache
+
+# Mount the source code and build caches
 RUN --mount=target=. \
     --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \
     go build -ldflags="-w -s" -o /app/service ./cmd/main.go
 
-# Import the binary from build stage
+# Create the final image
+FROM gcr.io/distroless/static:nonroot AS prd
 
-FROM gcr.io/distroless/static:nonroot as prd
+# Copy the built binary
 COPY --link --from=build /app/service /service
-# this is the numeric version of user nonroot:nonroot to check runAsNonRoot in kubernetes
+
+# Use non-root user
 USER 65532:65532
+
+# Set the entrypoint
 CMD ["/service"]
