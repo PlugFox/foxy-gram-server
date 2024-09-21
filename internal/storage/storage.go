@@ -20,6 +20,7 @@ import (
 	storage_logger "github.com/plugfox/foxy-gram-server/internal/storage/storagelogger"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
+	"gorm.io/gorm/logger"
 	"gorm.io/gorm/schema"
 )
 
@@ -28,7 +29,7 @@ type Storage struct {
 	db    *gorm.DB
 }
 
-func New(config *config.Config, logger *slog.Logger) (*Storage, error) {
+func New(config *config.Config, log *slog.Logger) (*Storage, error) {
 	// Cache
 	const (
 		numCounters = 1e7     // number of keys to track frequency of (10M).
@@ -66,7 +67,14 @@ func New(config *config.Config, logger *slog.Logger) (*Storage, error) {
 	// Log SQL queries if enabled
 	var dbLogger *storage_logger.GormSlogLogger
 	if config.Database.Logging {
-		dbLogger = storage_logger.NewGormSlogLogger(logger)
+		dbLogger = storage_logger.NewGormSlogLogger(log)
+	}
+
+	dbLogger = storage_logger.NewGormSlogLogger(log)
+	if config.Database.Logging {
+		dbLogger.LogMode(logger.Info)
+	} else {
+		dbLogger.LogMode(logger.Silent)
 	}
 
 	db, err := gorm.Open(

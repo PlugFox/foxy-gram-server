@@ -11,6 +11,7 @@ import (
 // GormSlogLogger is a custom GORM logger that uses slog.Logger for logging.
 type GormSlogLogger struct {
 	logger *slog.Logger
+	level  logger.LogLevel
 }
 
 // NewGormSlogLogger creates a new GormSlogLogger instance.
@@ -21,28 +22,38 @@ func NewGormSlogLogger(slog *slog.Logger) *GormSlogLogger {
 }
 
 // LogMode sets the log level for GORM logger.
-func (l *GormSlogLogger) LogMode(_ logger.LogLevel) logger.Interface {
-	// You can adjust logging level here, if necessary.
+func (l *GormSlogLogger) LogMode(level logger.LogLevel) logger.Interface {
+	l.level = level
 	return l
 }
 
 // Info logs info-level messages.
 func (l *GormSlogLogger) Info(ctx context.Context, msg string, data ...interface{}) {
-	l.logger.DebugContext(ctx, msg, slog.Any("data", data))
+	if l.level >= logger.Info {
+		l.logger.InfoContext(ctx, msg, slog.Any("data", data))
+	}
 }
 
 // Warn logs warning-level messages.
 func (l *GormSlogLogger) Warn(ctx context.Context, msg string, data ...interface{}) {
-	l.logger.WarnContext(ctx, msg, slog.Any("data", data))
+	if l.level >= logger.Warn {
+		l.logger.WarnContext(ctx, msg, slog.Any("data", data))
+	}
 }
 
 // Error logs error-level messages.
 func (l *GormSlogLogger) Error(ctx context.Context, msg string, data ...interface{}) {
-	l.logger.ErrorContext(ctx, msg, slog.Any("data", data))
+	if l.level >= logger.Error {
+		l.logger.ErrorContext(ctx, msg, slog.Any("data", data))
+	}
 }
 
 // Trace logs SQL queries with their execution time, affected rows, and errors.
 func (l *GormSlogLogger) Trace(ctx context.Context, begin time.Time, fc func() (sql string, rowsAffected int64), err error) {
+	if l.level <= logger.Silent {
+		return
+	}
+
 	elapsed := time.Since(begin)
 	sql, rows := fc()
 
