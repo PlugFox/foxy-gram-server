@@ -13,6 +13,7 @@ import (
 	"go.uber.org/automaxprocs/maxprocs"
 
 	config "github.com/plugfox/foxy-gram-server/internal/config"
+	"github.com/plugfox/foxy-gram-server/internal/httpclient"
 	log "github.com/plugfox/foxy-gram-server/internal/log"
 	"github.com/plugfox/foxy-gram-server/internal/model"
 	storage "github.com/plugfox/foxy-gram-server/internal/storage"
@@ -66,8 +67,14 @@ func run(config *config.Config, logger *slog.Logger) error {
 		return fmt.Errorf("database connection error: %w", err)
 	}
 
+	// Create a http client
+	httpClient, err := httpclient.NewHttpSocks5Client(&config.Proxy)
+	if err != nil {
+		return fmt.Errorf("database connection error: %w", err)
+	}
+
 	// Setup Telegram bot
-	telegram, err := telegram.New(db, config, logger)
+	telegram, err := telegram.New(db, httpClient, config, logger)
 	if err != nil {
 		return fmt.Errorf("telegram bot setup error: %w", err)
 	}

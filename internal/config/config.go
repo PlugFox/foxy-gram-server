@@ -14,30 +14,30 @@ type Config struct {
 	Secret      string `yaml:"secret" env:"SECRET" env-default:"" env-description:"Secret key for JWT token signing and validation"`
 	Verbose     string `yaml:"verbose" env:"VERBOSE" env-default:"warn" env-description:"Verbose mode for output: debug | info | warn | error"`
 
+	Proxy    ProxyConfig    `yaml:"proxy" env-description:"Proxy SOCKS5 server config"`
 	Telegram TelegramConfig `yaml:"telegram"`
 	Captcha  CaptchaConfig  `yaml:"captcha"`
 	API      APIConfig      `yaml:"api"`
 	Database DatabaseConfig `yaml:"database"`
 }
 
-// Telegram config
-type TelegramConfig struct {
-	Token     string              `yaml:"token" env:"TELEGRAM_TOKEN" env-required:"true" env-description:"Telegram bot token"`
-	Timeout   time.Duration       `yaml:"timeout" env:"TELEGRAM_TIMEOUT" env-default:"10s" env-description:"Telegram bot poller timeout"`
-	Chats     []int64             `yaml:"chats" env:"TELEGRAM_CHATS" env-description:"Telegram chats to listen to"`
-	Admins    []int64             `yaml:"admins" env:"TELEGRAM_ADMINS" env-description:"Telegram bot admins"`
-	Whitelist []int64             `yaml:"whitelist" env:"TELEGRAM_WHITELIST" env-description:"Telegram bot whitelist"`
-	Blacklist []int64             `yaml:"blacklist" env:"TELEGRAM_BLACKLIST" env-description:"Telegram bot blacklist"`
-	IgnoreVia bool                `yaml:"ignore_via" env:"TELEGRAM_IGNORE_VIA" env-default:"false" env-description:"Ignore messages from other bots"`
-	Proxy     TelegramProxyConfig `yaml:"proxy" env-description:"Proxy SOCKS5 server config"`
+// Proxy SOCKS5 server config
+type ProxyConfig struct {
+	Address  string `yaml:"address" env:"PROXY_ADDRESS" env-description:"Proxy server host address"`
+	Port     int    `yaml:"port" env:"PROXY_PORT" env-description:"Proxy server port"`
+	Username string `yaml:"username" env:"PROXY_USERNAME" env-description:"Proxy server username"`
+	Password string `yaml:"password" env:"PROXY_PASSWORD" env-description:"Proxy server password"`
 }
 
-// Proxy SOCKS5 server config
-type TelegramProxyConfig struct {
-	Address  string `yaml:"address" env:"TELEGRAM_PROXY_ADDRESS" env-description:"Proxy server host address"`
-	Port     int    `yaml:"port" env:"TELEGRAM_PROXY_PORT" env-description:"Proxy server port"`
-	Username string `yaml:"username" env:"TELEGRAM_PROXY_USERNAME" env-description:"Proxy server username"`
-	Password string `yaml:"password" env:"TELEGRAM_PROXY_PASSWORD" env-description:"Proxy server password"`
+// Telegram config
+type TelegramConfig struct {
+	Token     string        `yaml:"token" env:"TELEGRAM_TOKEN" env-required:"true" env-description:"Telegram bot token"`
+	Timeout   time.Duration `yaml:"timeout" env:"TELEGRAM_TIMEOUT" env-default:"10s" env-description:"Telegram bot poller timeout"`
+	Chats     []int64       `yaml:"chats" env:"TELEGRAM_CHATS" env-description:"Telegram chats to listen to"`
+	Admins    []int64       `yaml:"admins" env:"TELEGRAM_ADMINS" env-description:"Telegram bot admins"`
+	Whitelist []int64       `yaml:"whitelist" env:"TELEGRAM_WHITELIST" env-description:"Telegram bot whitelist"`
+	Blacklist []int64       `yaml:"blacklist" env:"TELEGRAM_BLACKLIST" env-description:"Telegram bot blacklist"`
+	IgnoreVia bool          `yaml:"ignore_via" env:"TELEGRAM_IGNORE_VIA" env-default:"false" env-description:"Ignore messages from other bots"`
 }
 
 type CaptchaConfig struct {
