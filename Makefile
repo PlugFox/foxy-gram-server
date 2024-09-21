@@ -68,7 +68,7 @@ inst: ## go install tools
 	@cd tools && go install $(shell cd tools && go list -e -f '{{ join .Imports " " }}' -tags=tools)
 
 .PHONY: get
-get: ## get dependencies
+get: ## get and update dependencies
 	$(call print-target)
 	@go get -u ./...
 

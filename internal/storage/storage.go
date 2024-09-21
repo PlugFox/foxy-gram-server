@@ -24,7 +24,7 @@ import (
 )
 
 type Storage struct {
-	cache *ristretto.Cache
+	cache *ristretto.Cache[string, interface{}]
 	db    *gorm.DB
 }
 
@@ -35,7 +35,7 @@ func New(config *config.Config, logger *slog.Logger) (*Storage, error) {
 		maxCost     = 1 << 28 // maximum cost of cache (256 MiB).
 		bufferItems = 64      // number of keys per Get buffer.
 	)
-	cache, err := ristretto.NewCache(&ristretto.Config{
+	cache, err := ristretto.NewCache(&ristretto.Config[string, interface{}]{
 		NumCounters: numCounters,
 		MaxCost:     maxCost,
 		BufferItems: bufferItems,
