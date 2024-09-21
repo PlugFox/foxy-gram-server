@@ -57,18 +57,18 @@ func (Message) TableName() string {
 }
 
 // GetID - get the message ID
-func (c *Message) GetID() int64 {
-	return int64(c.ID)
+func (obj *Message) GetID() int64 {
+	return int64(obj.ID)
 }
 
 // ToInt64 - get the message ID
-func (c MessageID) ToInt64() int64 {
-	return int64(c)
+func (id MessageID) ToInt64() int64 {
+	return int64(id)
 }
 
 // ToString - get the message ID
-func (c MessageID) ToString() string {
-	return strconv.FormatInt(int64(c), 10)
+func (id MessageID) ToString() string {
+	return strconv.FormatInt(int64(id), 10)
 }
 
 // Hash - calculate the hash of the object

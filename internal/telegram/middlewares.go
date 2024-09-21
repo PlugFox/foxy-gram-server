@@ -138,11 +138,14 @@ func verifyUserMiddleware(db *storage.Storage, httpClient *http.Client, config *
 					handleError(onError, err)
 					return nil // Skip the current message
 				} else if member.Role == tele.Creator || member.Role == tele.Administrator || chat.Private {
-					db.VerifyUser(&model.VerifiedUser{
+					// Add user to the verification list, if it is an admin or private ch
+					if err := db.VerifyUser(&model.VerifiedUser{
 						ID:         model.UserID(sender.ID),
 						VerifiedAt: time.Now(),
 						Reason:     "Not banned",
-					}) // Add user to the verification list, if it is an admin or private chat
+					}); err != nil {
+						handleError(onError, err)
+					}
 					return next(c) // Admin or private chat - skip the verification
 				}
 			}
@@ -157,7 +160,9 @@ func verifyUserMiddleware(db *storage.Storage, httpClient *http.Client, config *
 				if err := bot.Ban(chat, &tele.ChatMember{User: sender}, true); err != nil {
 					handleError(onError, err)
 				}
-				bot.Send(chat, fmt.Sprintf("User `%s` is banned", sender.Recipient()), tele.ModeMarkdownV2)
+				if _, err := bot.Send(chat, fmt.Sprintf("User `%s` is banned", sender.Recipient()), tele.ModeMarkdownV2); err != nil {
+					handleError(onError, err)
+				}
 				return nil
 			}
 
@@ -165,11 +170,13 @@ func verifyUserMiddleware(db *storage.Storage, httpClient *http.Client, config *
 			// defer c.Delete() // Delete this message after processing
 
 			// Add user to the verification list
-			db.VerifyUser(&model.VerifiedUser{
+			if err := db.VerifyUser(&model.VerifiedUser{
 				ID:         model.UserID(sender.ID),
 				VerifiedAt: time.Now(),
 				Reason:     "Not banned",
-			})
+			}); err != nil {
+				handleError(onError, err)
+			}
 
 			return next(c)
 		}

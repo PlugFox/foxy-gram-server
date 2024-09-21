@@ -1,4 +1,4 @@
-package storage_logger
+package storagelogger
 
 import (
 	"context"
@@ -21,7 +21,7 @@ func NewGormSlogLogger(slog *slog.Logger) *GormSlogLogger {
 }
 
 // LogMode sets the log level for GORM logger.
-func (l *GormSlogLogger) LogMode(level logger.LogLevel) logger.Interface {
+func (l *GormSlogLogger) LogMode(_ logger.LogLevel) logger.Interface {
 	// You can adjust logging level here, if necessary.
 	return l
 }

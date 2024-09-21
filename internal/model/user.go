@@ -48,18 +48,18 @@ func (User) TableName() string {
 }
 
 // GetID - get the user ID
-func (c *User) GetID() int64 {
-	return int64(c.ID)
+func (obj *User) GetID() int64 {
+	return int64(obj.ID)
 }
 
 // ToInt64 - get the user ID
-func (c UserID) ToInt64() int64 {
-	return int64(c)
+func (id UserID) ToInt64() int64 {
+	return int64(id)
 }
 
 // ToString - get the user ID
-func (c UserID) ToString() string {
-	return strconv.FormatInt(int64(c), 10)
+func (id UserID) ToString() string {
+	return strconv.FormatInt(int64(id), 10)
 }
 
 // Hash - calculate the hash of the object

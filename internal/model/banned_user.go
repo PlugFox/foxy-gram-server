@@ -25,8 +25,8 @@ func (BannedUser) TableName() string {
 }
 
 // GetID - get the user ID
-func (c *BannedUser) GetID() int64 {
-	return int64(c.ID)
+func (obj *BannedUser) GetID() int64 {
+	return int64(obj.ID)
 }
 
 // Hash - calculate the hash of the object

@@ -24,8 +24,8 @@ func (VerifiedUser) TableName() string {
 }
 
 // GetID - get the user ID
-func (c *VerifiedUser) GetID() int64 {
-	return int64(c.ID)
+func (obj *VerifiedUser) GetID() int64 {
+	return int64(obj.ID)
 }
 
 // Hash - calculate the hash of the object

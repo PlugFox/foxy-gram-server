@@ -7,6 +7,8 @@ import (
 	"time"
 )
 
+var errorValueEmpty = errors.New("value is empty")
+
 // KeyValue - key-value pair
 // Save value as a byte array to support any type of value with gob
 type KeyValue struct {
@@ -39,7 +41,7 @@ func (kv *KeyValue) SetValue(value interface{}) error {
 // Get the value from the key-value pair
 func (kv *KeyValue) GetValue(out interface{}) error {
 	if len(kv.Value) == 0 {
-		return errors.New("value is empty")
+		return errorValueEmpty
 	}
 	buffer := bytes.NewBuffer(kv.Value)
 	dec := gob.NewDecoder(buffer)

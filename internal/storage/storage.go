@@ -16,7 +16,7 @@ import (
 	"github.com/dgraph-io/ristretto"
 	config "github.com/plugfox/foxy-gram-server/internal/config"
 	"github.com/plugfox/foxy-gram-server/internal/model"
-	storage_logger "github.com/plugfox/foxy-gram-server/internal/storage/storage_logger"
+	storage_logger "github.com/plugfox/foxy-gram-server/internal/storage/storagelogger"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 	"gorm.io/gorm/schema"

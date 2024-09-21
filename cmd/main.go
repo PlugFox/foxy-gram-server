@@ -66,7 +66,7 @@ func run(config *config.Config, logger *slog.Logger) error {
 	}
 
 	// Create a http client
-	httpClient, err := httpclient.NewHttpClient(&config.Proxy)
+	httpClient, err := httpclient.NewHTTPClient(&config.Proxy)
 	if err != nil {
 		return fmt.Errorf("database connection error: %w", err)
 	}
@@ -77,7 +77,9 @@ func run(config *config.Config, logger *slog.Logger) error {
 		return fmt.Errorf("telegram bot setup error: %w", err)
 	}
 
-	db.UpsertUser(telegram.Me().Seen()) // Upsert the bot user to the database
+	if err := db.UpsertUser(telegram.Me().Seen()); err != nil {
+		return fmt.Errorf("upserting user error: %w", err)
+	}
 
 	// TODO: Setup API server
 

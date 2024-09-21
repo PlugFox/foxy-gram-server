@@ -12,7 +12,11 @@ import (
 	"golang.org/x/net/proxy"
 )
 
-func NewHttpClient(config *config.ProxyConfig) (*http.Client, error) {
+const (
+	httpClientTimeout = 15 * time.Second // Timeout duration for HTTP client
+)
+
+func NewHTTPClient(config *config.ProxyConfig) (*http.Client, error) {
 	transport := &http.Transport{}
 	if config != nil && config.Address != "" && config.Port != 0 {
 		addr := fmt.Sprintf("%s:%s", config.Address, strconv.Itoa(config.Port))
@@ -30,7 +34,7 @@ func NewHttpClient(config *config.ProxyConfig) (*http.Client, error) {
 	}
 	httpClient := &http.Client{
 		Transport: transport,
-		Timeout:   15 * time.Second, // Set a timeout to avoid hanging requests
+		Timeout:   httpClientTimeout, // Set a timeout to avoid hanging requests
 	}
 	return httpClient, nil
 }
