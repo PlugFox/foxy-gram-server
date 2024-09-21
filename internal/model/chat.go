@@ -21,7 +21,7 @@ type Chat struct {
 
 	// Meta fields
 	UpdatedAt time.Time      `gorm:"autoUpdateTime" json:"updated_at"` // Time when the chat was last updated.
-	DeletedAt gorm.DeletedAt `gorm:"index"          json:"deleted_at"`          // Soft delete.
+	DeletedAt gorm.DeletedAt `gorm:"index"          json:"deleted_at"` // Soft delete.
 	Extra     string         `json:"extra"`                            // Extra data.
 }
 
