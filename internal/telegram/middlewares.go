@@ -61,24 +61,44 @@ func isUserBanned(db *storage.Storage, bot *tele.Bot, user *tele.User) (bool, er
 	return false, nil
 }
 
-// Centralized error handling
-func handleError(onError func(error), err error) {
-	if onError != nil {
-		onError(err)
-	}
-}
-
 // Verify user middleware - verify the user with a captcha
 func verifyUserMiddleware(db *storage.Storage, config *config.Config, onError func(error)) tele.MiddlewareFunc {
+	// Centralized error handling
+	handleError := func(onError func(error), err error) {
+		if onError != nil {
+			onError(err)
+		}
+	}
+
 	return func(next tele.HandlerFunc) tele.HandlerFunc {
 		return func(c tele.Context) error {
 			if c.Callback() != nil {
-				return next(c)
+				return next(c) // There is callback
 			}
 
-			sender := c.Sender()
-			chat := c.Chat()
+			sender := c.Sender() // Sender
+			chat := c.Chat()     // Chat
 
+			// If there is not enough parameters - skip it
+			if sender.ID == 0 || chat.ID == 0 || sender.ID == chat.ID || sender.IsBot || chat.Private {
+				return nil
+			}
+
+			// If it not allowed chat - skip it
+			if !allowedChats(config, chat.ID) {
+				return nil
+			}
+
+			// Check if it already verified user
+			verified, err := db.IsVerifiedUser(model.UserID(sender.ID))
+			if err != nil {
+				handleError(onError, err)
+				return nil
+			} else if verified {
+				return next(c) // Verified user
+			}
+
+			// Check if the chat is valid and if the sender is an admin or the chat is private
 			if chat != nil {
 				member, err := c.Bot().ChatMemberOf(chat, sender)
 				if err == nil && (member.Role == tele.Creator || member.Role == tele.Administrator || chat.Private) {
@@ -86,32 +106,14 @@ func verifyUserMiddleware(db *storage.Storage, config *config.Config, onError fu
 				}
 			}
 
-			if sender.ID == 0 || chat.ID == 0 || sender.ID == chat.ID || sender.IsBot || chat.Private {
-				return nil
-			}
-
-			if !allowedChats(config, chat.ID) {
-				return nil
-			}
-
-			verified, err := db.IsVerifiedUser(model.UserID(sender.ID))
-			if err != nil {
-				handleError(onError, err)
-				return nil
-			}
-			if verified {
-				return next(c)
-			}
-
-			defer c.Delete()
+			defer c.Delete() // Delete this message anyway
 
 			bot := c.Bot()
 			banned, err := isUserBanned(db, bot, sender)
 			if err != nil {
 				handleError(onError, err)
 				return nil
-			}
-			if banned {
+			} else if banned {
 				if err := bot.Ban(chat, &tele.ChatMember{User: sender}, true); err != nil {
 					handleError(onError, err)
 				}
