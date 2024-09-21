@@ -407,7 +407,7 @@ func (s *Storage) IsBannedUser(userID model.UserID) (bool, error) {
 	return true, nil
 }
 
-// Check if the user is banned
+// Set the user as verified
 func (s *Storage) VerifyUser(verifiedUser *model.VerifiedUser) error {
 	userId := verifiedUser.ID.ToString()
 	s.cacheSet(fmt.Sprintf("_verified#%s", userId), true)

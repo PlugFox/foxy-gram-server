@@ -119,7 +119,7 @@ func verifyUserMiddleware(db *storage.Storage, httpClient *http.Client, config *
 
 			// If it not allowed chat - skip it
 			if !allowedChats(config, chat.ID) {
-				return nil // Skip the current message
+				return nil // Skip the current message, if it is not allowed chat
 			}
 
 			// Check if it already verified user
@@ -138,25 +138,37 @@ func verifyUserMiddleware(db *storage.Storage, httpClient *http.Client, config *
 					handleError(onError, err)
 					return nil // Skip the current message
 				} else if member.Role == tele.Creator || member.Role == tele.Administrator || chat.Private {
+					db.VerifyUser(&model.VerifiedUser{
+						ID:         model.UserID(sender.ID),
+						VerifiedAt: time.Now(),
+						Reason:     "Not banned",
+					}) // Add user to the verification list, if it is an admin or private chat
 					return next(c) // Admin or private chat - skip the verification
 				}
 			}
 
-			// defer c.Delete() // Delete this message after processing
-
-			bot := c.Bot()
 			banned, err := isUserBanned(db, httpClient, sender)
 			if err != nil {
 				handleError(onError, err)
 				return nil // Skip the current message
 			} else if banned {
-				if err := bot.Ban(chat, &tele.ChatMember{User: sender}, true); err != nil {
+				if err := c.Bot().Ban(chat, &tele.ChatMember{User: sender}, true); err != nil {
 					handleError(onError, err)
 				}
 				return nil
 			}
 
-			return nil
+			// TODO: Start verification process
+			// defer c.Delete() // Delete this message after processing
+
+			// Add user to the verification list
+			db.VerifyUser(&model.VerifiedUser{
+				ID:         model.UserID(sender.ID),
+				VerifiedAt: time.Now(),
+				Reason:     "Not banned",
+			})
+
+			return next(c)
 		}
 	}
 }
