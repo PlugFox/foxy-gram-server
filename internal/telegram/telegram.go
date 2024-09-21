@@ -76,7 +76,7 @@ func New(db *storage.Storage, httpClient *http.Client, config *config.Config, lo
 	}) */
 
 	// Group-scoped middleware:
-	if config.Telegram.Admins != nil && len(config.Telegram.Admins) > 0 {
+	if len(config.Telegram.Admins) > 0 {
 		adminOnly := bot.Group()
 		adminOnly.Use(middleware.Whitelist(config.Telegram.Admins...))
 		/* adminOnly.Handle("/ban", onBan)
