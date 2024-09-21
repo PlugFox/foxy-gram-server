@@ -110,6 +110,7 @@ test: ## go test
 
 .PHONY: docker
 docker: ## Builds docker image
+#   docker buildx build --platform linux/amd64,linux/arm64 -t $(DOCKER_REPO):$(DOCKER_TAG) .
 	docker buildx build --cache-to type=inline -t $(DOCKER_REPO):$(DOCKER_TAG) .
 
 .PHONY: diff
