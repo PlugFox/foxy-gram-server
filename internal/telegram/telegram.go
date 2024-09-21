@@ -49,10 +49,10 @@ func New(db *storage.Storage, httpClient *http.Client, config *config.Config, lo
 	bot.Use(verifyUserMiddleware(db, httpClient, config, func(err error) {
 		logger.Error("verify user error", slog.String("error", err.Error()))
 	}))
-	if config.Telegram.Whitelist != nil && len(config.Telegram.Whitelist) > 0 {
+	if len(config.Telegram.Whitelist) > 0 {
 		bot.Use(mw.Whitelist(config.Telegram.Whitelist...))
 	}
-	if config.Telegram.Blacklist != nil && len(config.Telegram.Blacklist) > 0 {
+	if len(config.Telegram.Blacklist) > 0 {
 		bot.Use(mw.Blacklist(config.Telegram.Blacklist...))
 	}
 

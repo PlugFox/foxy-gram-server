@@ -2,6 +2,7 @@ package telegram
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -15,6 +16,9 @@ import (
 	tele "gopkg.in/telebot.v3"
 )
 
+var errorUnexpectedStatusCode = fmt.Errorf("unexpected status code")
+
+//nolint:unused
 type captchaMessage struct {
 	buffer  *bytes.Buffer
 	captcha *utility.Captcha
@@ -33,6 +37,8 @@ func allowedChats(config *config.Config, chatID int64) bool {
 }
 
 // Restrict user rights
+//
+//nolint:unused
 func restrictUser(bot *tele.Bot, chat *tele.Chat, user *tele.User, rights tele.Rights, until time.Time) error {
 	return bot.Restrict(chat, &tele.ChatMember{
 		User:            user,
@@ -42,6 +48,8 @@ func restrictUser(bot *tele.Bot, chat *tele.Chat, user *tele.User, rights tele.R
 }
 
 // Kick user from the chat (ban) for 1 hour
+//
+//nolint:unused
 func kickUser(bot *tele.Bot, chat *tele.Chat, user *tele.User) error {
 	return bot.Ban(chat, &tele.ChatMember{
 		User:            user,
@@ -60,15 +68,24 @@ func isUserBanned(db *storage.Storage, httpClient *http.Client, user *tele.User)
 	}
 
 	// Check CAS ban
-	resp, err := httpClient.Get("https://api.cas.chat/check?user_id=" + user.Recipient())
+	const timeout = 10 * time.Second
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://api.cas.chat/check?user_id="+user.Recipient(), nil)
 	if err != nil {
 		return false, err
+	}
+
+	resp, err := httpClient.Do(req)
+	if err != nil {
+		return false, errorUnexpectedStatusCode
 	}
 	defer resp.Body.Close()
 
 	// Handle non-200
 	if resp.StatusCode != http.StatusOK {
-		return false, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+		return false, errorUnexpectedStatusCode
 	}
 
 	// Parse the response body into an anonymous struct
@@ -95,6 +112,8 @@ func isUserBanned(db *storage.Storage, httpClient *http.Client, user *tele.User)
 }
 
 // Verify user middleware - verify the user with a captcha
+//
+//nolint:cyclop
 func verifyUserMiddleware(db *storage.Storage, httpClient *http.Client, config *config.Config, onError func(error)) tele.MiddlewareFunc {
 	// Centralized error handling
 	handleError := func(onError func(error), err error) {

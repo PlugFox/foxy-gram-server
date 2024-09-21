@@ -9,6 +9,7 @@ import (
 	tele "gopkg.in/telebot.v3"
 )
 
+//nolint:unused
 func buildCaptchaMessage(conf config.CaptchaConfig, user tele.User) (*captchaMessage, error) {
 	var caption string
 	if username := user.Username; username != "" {

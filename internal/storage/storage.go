@@ -9,6 +9,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/gob"
+	"errors"
 	"fmt"
 	"log/slog"
 	"time"
@@ -203,6 +204,8 @@ func (s *Storage) UpsertMessage(input UpsertMessageInput) error {
 }
 
 // Upsert chats if any of them have changed
+//
+//nolint:dupl
 func (s *Storage) UpsertChats(tx *gorm.DB, data ...*model.Chat) error {
 	if len(data) == 0 {
 		return nil
@@ -249,6 +252,8 @@ func (s *Storage) UpsertChats(tx *gorm.DB, data ...*model.Chat) error {
 }
 
 // Upsert users if any of them have changed
+//
+//nolint:dupl
 func (s *Storage) UpsertUsers(tx *gorm.DB, data ...*model.User) error {
 	if len(data) == 0 {
 		return nil
@@ -367,12 +372,11 @@ func (s *Storage) IsVerifiedUser(userID model.UserID) (bool, error) {
 		Where("id = ?", userID).
 		Limit(1).
 		Scan(&exists).Error
-	if err != nil {
-		if err == gorm.ErrRecordNotFound {
-			// If user is not found, cache and return false
-			s.cacheSet(cacheKey, false)
-			return false, nil
-		}
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		// If user is not found, cache and return false
+		s.cacheSet(cacheKey, false)
+		return false, nil
+	} else if err != nil {
 		// Return error for other issues
 		return false, err
 	}
@@ -388,7 +392,7 @@ func (s *Storage) IsBannedUser(userID model.UserID) (bool, error) {
 	err := s.db.Model(&model.BannedUser{}).
 		Where("id = ?", userID).
 		First(&bannedUser).Error
-	if err == gorm.ErrRecordNotFound {
+	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return false, nil // User is not banned
 	} else if err != nil {
 		return false, err // Return error for other issues
@@ -409,8 +413,8 @@ func (s *Storage) IsBannedUser(userID model.UserID) (bool, error) {
 
 // Set the user as verified
 func (s *Storage) VerifyUser(verifiedUser *model.VerifiedUser) error {
-	userId := verifiedUser.ID.ToString()
-	s.cacheSet(fmt.Sprintf("_verified#%s", userId), true)
+	userID := verifiedUser.ID.ToString()
+	s.cacheSet(fmt.Sprintf("_verified#%s", userID), true)
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		// Remove the user from the banned list
 		if err := tx.Delete(&model.BannedUser{}, "id = ?", verifiedUser.ID).Error; err != nil {
@@ -424,7 +428,7 @@ func (s *Storage) VerifyUser(verifiedUser *model.VerifiedUser) error {
 		return nil
 	})
 	if err != nil {
-		s.cacheDel(fmt.Sprintf("_verified#%s", userId))
+		s.cacheDel(fmt.Sprintf("_verified#%s", userID))
 	}
 	return err
 }
