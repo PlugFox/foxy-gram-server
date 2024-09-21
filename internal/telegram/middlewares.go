@@ -2,6 +2,9 @@ package telegram
 
 import (
 	"bytes"
+	"encoding/json"
+	"fmt"
+	"net/http"
 	"time"
 
 	config "github.com/plugfox/foxy-gram-server/internal/config"
@@ -47,7 +50,7 @@ func kickUser(bot *tele.Bot, chat *tele.Chat, user *tele.User) error {
 }
 
 // Verify the user with a local database and a CAS
-func isUserBanned(db *storage.Storage, bot *tele.Bot, user *tele.User) (bool, error) {
+func isUserBanned(db *storage.Storage, httpClient *http.Client, user *tele.User) (bool, error) {
 	// Check local ban
 	banned, err := db.IsBannedUser(model.UserID(user.ID))
 	if err != nil {
@@ -56,13 +59,43 @@ func isUserBanned(db *storage.Storage, bot *tele.Bot, user *tele.User) (bool, er
 		return true, nil
 	}
 
-	// ...
+	// Check CAS ban
+	resp, err := httpClient.Get("https://api.cas.chat/check?user_id=" + user.Recipient())
+	if err != nil {
+		return false, err
+	}
+	defer resp.Body.Close()
 
-	return false, nil
+	// Handle non-200
+	if resp.StatusCode != http.StatusOK {
+		return false, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+	}
+
+	// Parse the response body into an anonymous struct
+	// e.g.
+	// {"ok":false,"description":"Record not found."}
+	// {"ok":true,"result":{"offenses":1,"messages":["..."],"time_added":"2024-09-20T18:53:39.000Z"}}
+	var casResponse struct {
+		Ok          bool   `json:"ok"`
+		Description string `json:"description,omitempty"`
+		Result      struct {
+			Offenses  int      `json:"offenses,omitempty"`
+			Messages  []string `json:"messages,omitempty"`
+			TimeAdded string   `json:"time_added,omitempty"`
+		} `json:"result,omitempty"`
+	}
+
+	err = json.NewDecoder(resp.Body).Decode(&casResponse)
+	if err != nil {
+		return false, err
+	}
+
+	// Return whether the user is flagged by CAS
+	return casResponse.Ok, nil
 }
 
 // Verify user middleware - verify the user with a captcha
-func verifyUserMiddleware(db *storage.Storage, config *config.Config, onError func(error)) tele.MiddlewareFunc {
+func verifyUserMiddleware(db *storage.Storage, httpClient *http.Client, config *config.Config, onError func(error)) tele.MiddlewareFunc {
 	// Centralized error handling
 	handleError := func(onError func(error), err error) {
 		if onError != nil {
@@ -81,19 +114,19 @@ func verifyUserMiddleware(db *storage.Storage, config *config.Config, onError fu
 
 			// If there is not enough parameters - skip it
 			if sender.ID == 0 || chat.ID == 0 || sender.ID == chat.ID || sender.IsBot || chat.Private {
-				return nil
+				return nil // Skip the current message
 			}
 
 			// If it not allowed chat - skip it
 			if !allowedChats(config, chat.ID) {
-				return nil
+				return nil // Skip the current message
 			}
 
 			// Check if it already verified user
 			verified, err := db.IsVerifiedUser(model.UserID(sender.ID))
 			if err != nil {
 				handleError(onError, err)
-				return nil
+				return nil // Skip the current message
 			} else if verified {
 				return next(c) // Verified user
 			}
@@ -101,18 +134,21 @@ func verifyUserMiddleware(db *storage.Storage, config *config.Config, onError fu
 			// Check if the chat is valid and if the sender is an admin or the chat is private
 			if chat != nil {
 				member, err := c.Bot().ChatMemberOf(chat, sender)
-				if err == nil && (member.Role == tele.Creator || member.Role == tele.Administrator || chat.Private) {
-					return next(c)
+				if err != nil {
+					handleError(onError, err)
+					return nil // Skip the current message
+				} else if member.Role == tele.Creator || member.Role == tele.Administrator || chat.Private {
+					return next(c) // Admin or private chat - skip the verification
 				}
 			}
 
-			defer c.Delete() // Delete this message anyway
+			// defer c.Delete() // Delete this message after processing
 
 			bot := c.Bot()
-			banned, err := isUserBanned(db, bot, sender)
+			banned, err := isUserBanned(db, httpClient, sender)
 			if err != nil {
 				handleError(onError, err)
-				return nil
+				return nil // Skip the current message
 			} else if banned {
 				if err := bot.Ban(chat, &tele.ChatMember{User: sender}, true); err != nil {
 					handleError(onError, err)

@@ -68,7 +68,7 @@ func run(config *config.Config, logger *slog.Logger) error {
 	}
 
 	// Create a http client
-	httpClient, err := httpclient.NewHttpSocks5Client(&config.Proxy)
+	httpClient, err := httpclient.NewHttpClient(&config.Proxy)
 	if err != nil {
 		return fmt.Errorf("database connection error: %w", err)
 	}
