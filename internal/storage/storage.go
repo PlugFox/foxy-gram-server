@@ -24,6 +24,8 @@ import (
 	"gorm.io/gorm/schema"
 )
 
+var errorTypeAssertionToBytesFailed = errors.New("type assertion to []byte failed")
+
 type Storage struct {
 	cache *ristretto.Cache[string, interface{}]
 	db    *gorm.DB
@@ -119,11 +121,12 @@ func New(config *config.Config, log *slog.Logger) (*Storage, error) {
 func (s *Storage) Close() error {
 	s.cache.Close()
 
-	if sqlDB, err := s.db.DB(); err != nil {
+	sqlDB, err := s.db.DB()
+	if err != nil {
 		return err
-	} else {
-		return sqlDB.Close()
 	}
+
+	return sqlDB.Close()
 }
 
 // ClearCache - clear the cache.
@@ -377,7 +380,7 @@ func (s *Storage) KVGet(key string) (*model.KeyValue, error) {
 		if bytes, ok := val.([]byte); ok {
 			kv.Value = bytes
 		} else {
-			return nil, errors.New("type assertion to []byte failed")
+			return nil, errorTypeAssertionToBytesFailed
 		}
 
 		return &kv, nil
