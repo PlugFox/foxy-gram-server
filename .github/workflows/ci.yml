@@ -120,6 +120,9 @@ jobs:
 
           echo "Version set to $VERSION"
 
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -134,6 +137,6 @@ jobs:
         with:
           context: .
           file: ./Dockerfile
-          platforms: linux/arm64, linux/amd64
+          platforms: linux/arm64,linux/amd64,linux/arm/v7
           push: true
           tags: ${{ env.docker-image }}:latest, ${{ env.docker-image }}:${{ steps.version.outputs.SEM_VERSION }}
