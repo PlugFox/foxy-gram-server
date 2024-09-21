@@ -19,12 +19,12 @@ FROM base AS build
 RUN --mount=target=. \
     --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \
-    go build -ldflags="-w -s" -o /app/foxygram ./cmd/main.go
+    go build -ldflags="-w -s" -o /app/bot ./cmd/main.go
 
 # Import the binary from build stage
 
 FROM gcr.io/distroless/static:nonroot as prd
-COPY --link --from=build /app/foxygram /
+COPY --link --from=build /app/bot /bot
 # this is the numeric version of user nonroot:nonroot to check runAsNonRoot in kubernetes
 USER 65532:65532
-ENTRYPOINT ["/foxygram"]
+cmd ["/bot"]
