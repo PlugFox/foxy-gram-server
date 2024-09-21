@@ -14,7 +14,7 @@ func NewLogAdapter(logger *slog.Logger) *log.Logger {
 }
 
 func (a *logAdapter) Write(p []byte) (n int, err error) {
-	// Прокидываем сообщение в slog.Logger
 	a.slog.Info(string(p))
+
 	return len(p), nil
 }

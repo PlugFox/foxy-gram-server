@@ -39,6 +39,7 @@ func (obj *User) Seen() *User {
 		Time:  time.Now().UTC(),
 		Valid: true,
 	}
+
 	return obj
 }
 

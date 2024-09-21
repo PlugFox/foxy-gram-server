@@ -19,7 +19,9 @@ func buildCaptchaMessage(conf config.CaptchaConfig, user tele.User) (*captchaMes
 	} else {
 		caption = "Please solve the captcha.\nReply with the code in the image."
 	}
+
 	buffer := new(bytes.Buffer)
+
 	captcha, err := utility.GenerateCaptcha(conf, buffer)
 	if err != nil {
 		return nil, err

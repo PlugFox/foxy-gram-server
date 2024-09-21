@@ -33,6 +33,7 @@ func allowedChats(config *config.Config, chatID int64) bool {
 			return true
 		}
 	}
+
 	return len(config.Telegram.Chats) == 0
 }
 
@@ -70,9 +71,14 @@ func isUserBanned(db *storage.Storage, httpClient *http.Client, user *tele.User)
 	// Check CAS ban
 	const timeout = 10 * time.Second
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+
 	defer cancel()
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://api.cas.chat/check?user_id="+user.Recipient(), nil)
+	req, err := http.NewRequestWithContext(
+		ctx,
+		http.MethodGet, "https://api.cas.chat/check?user_id="+user.Recipient(),
+		nil,
+	)
 	if err != nil {
 		return false, err
 	}
@@ -113,8 +119,13 @@ func isUserBanned(db *storage.Storage, httpClient *http.Client, user *tele.User)
 
 // Verify user middleware - verify the user with a captcha
 //
-//nolint:cyclop
-func verifyUserMiddleware(db *storage.Storage, httpClient *http.Client, config *config.Config, onError func(error)) tele.MiddlewareFunc {
+//nolint:cyclop,gocognit
+func verifyUserMiddleware(
+	db *storage.Storage,
+	httpClient *http.Client,
+	config *config.Config,
+	onError func(error),
+) tele.MiddlewareFunc {
 	// Centralized error handling
 	handleError := func(onError func(error), err error) {
 		if onError != nil {
@@ -145,6 +156,7 @@ func verifyUserMiddleware(db *storage.Storage, httpClient *http.Client, config *
 			verified, err := db.IsVerifiedUser(model.UserID(sender.ID))
 			if err != nil {
 				handleError(onError, err)
+
 				return nil // Skip the current message
 			} else if verified {
 				return next(c) // Verified user
@@ -155,6 +167,7 @@ func verifyUserMiddleware(db *storage.Storage, httpClient *http.Client, config *
 				member, err := c.Bot().ChatMemberOf(chat, sender)
 				if err != nil {
 					handleError(onError, err)
+
 					return nil // Skip the current message
 				} else if member.Role == tele.Creator || member.Role == tele.Administrator || chat.Private {
 					// Add user to the verification list, if it is an admin or private ch
@@ -165,6 +178,7 @@ func verifyUserMiddleware(db *storage.Storage, httpClient *http.Client, config *
 					}); err != nil {
 						handleError(onError, err)
 					}
+
 					return next(c) // Admin or private chat - skip the verification
 				}
 			}
@@ -172,6 +186,7 @@ func verifyUserMiddleware(db *storage.Storage, httpClient *http.Client, config *
 			banned, err := isUserBanned(db, httpClient, sender)
 			if err != nil {
 				handleError(onError, err)
+
 				return nil // Skip the current message
 			} else if banned {
 				bot := c.Bot()
@@ -179,9 +194,13 @@ func verifyUserMiddleware(db *storage.Storage, httpClient *http.Client, config *
 				if err := bot.Ban(chat, &tele.ChatMember{User: sender}, true); err != nil {
 					handleError(onError, err)
 				}
-				if _, err := bot.Send(chat, fmt.Sprintf("User `%s` is banned", sender.Recipient()), tele.ModeMarkdownV2); err != nil {
+
+				// Send the message to the chat
+				msg := fmt.Sprintf("User `%s` is banned", sender.Recipient())
+				if _, err := bot.Send(chat, msg, tele.ModeMarkdownV2); err != nil {
 					handleError(onError, err)
 				}
+
 				return nil
 			}
 
@@ -229,13 +248,21 @@ func storeMessagesMiddleware(db *storage.Storage, onError func(error)) tele.Midd
 					}
 				}()
 			}
+
 			return next(c)
 		}
 	}
 }
 
 // Verify the user with a captcha
-/* func verifyUserWithCaptcha(channel chan error, db *storage.Storage, config *config.Config, bot *tele.Bot, chat *tele.Chat, user *tele.User) {
+/* func verifyUserWithCaptcha(
+	channel chan error,
+	db *storage.Storage,
+	config *config.Config,
+	bot *tele.Bot,
+	chat *tele.Chat,
+	user *tele.User,
+) {
 	banned, err := db.IsBannedUser(model.UserID(user.ID))
 	if err != nil {
 		channel <- err

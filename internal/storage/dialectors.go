@@ -37,6 +37,7 @@ func sqliteDialector(connection string) (gorm.Dialector, error) {
 	if connection == ":memory:" {
 		return sqlite.Open("file::memory:?cache=shared"), nil
 	}
+
 	return sqlite.Open(connection), nil
 }
 

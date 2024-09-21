@@ -43,7 +43,6 @@ func main() {
 	}
 
 	os.Exit(0)
-	// select {}
 }
 
 func run(config *config.Config, logger *slog.Logger) error {

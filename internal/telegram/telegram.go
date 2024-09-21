@@ -11,6 +11,7 @@ import (
 	log "github.com/plugfox/foxy-gram-server/internal/log"
 	"github.com/plugfox/foxy-gram-server/internal/model"
 	"github.com/plugfox/foxy-gram-server/internal/storage"
+
 	tele "gopkg.in/telebot.v3"
 	"gopkg.in/telebot.v3/middleware"
 	mw "gopkg.in/telebot.v3/middleware"
@@ -41,6 +42,7 @@ func New(db *storage.Storage, httpClient *http.Client, config *config.Config, lo
 	bot.Use(mw.Recover())
 	bot.Use(mw.AutoRespond())
 	bot.Use(mw.Logger(log.NewLogAdapter(logger)))
+
 	if config.Telegram.IgnoreVia {
 		bot.Use(mw.IgnoreVia())
 	}
@@ -48,9 +50,11 @@ func New(db *storage.Storage, httpClient *http.Client, config *config.Config, lo
 	bot.Use(verifyUserMiddleware(db, httpClient, config, func(err error) {
 		logger.Error("verify user error", slog.String("error", err.Error()))
 	}))
+
 	if len(config.Telegram.Whitelist) > 0 {
 		bot.Use(mw.Whitelist(config.Telegram.Whitelist...))
 	}
+
 	if len(config.Telegram.Blacklist) > 0 {
 		bot.Use(mw.Blacklist(config.Telegram.Blacklist...))
 	}
@@ -77,9 +81,9 @@ func New(db *storage.Storage, httpClient *http.Client, config *config.Config, lo
 	// Group-scoped middleware:
 	if len(config.Telegram.Admins) > 0 {
 		adminOnly := bot.Group()
-		adminOnly.Use(middleware.Whitelist(config.Telegram.Admins...))
 		/* adminOnly.Handle("/ban", onBan)
 		adminOnly.Handle("/kick", onKick) */
+		adminOnly.Use(middleware.Whitelist(config.Telegram.Admins...))
 	}
 
 	// TODO: add more handlers

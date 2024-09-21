@@ -33,11 +33,13 @@ func TestChatHash(t *testing.T) {
 	}
 
 	InitHashFunction()
+
 	for _, testcase := range testcases {
 		t.Run(testcase.Name, func(t *testing.T) {
 			hash, err := testcase.Chat.Hash()
 			require.NoError(t, err)
 			require.NotEmpty(t, hash)
+
 			hash2, _ := testcase.Chat.Hash()
 			require.Equal(t, hash, hash2)
 			require.Equal(t, testcase.ExpectedHash, hash)

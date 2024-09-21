@@ -24,10 +24,12 @@ type Captcha struct {
 // GenerateCaptcha generates a new captcha with the given configuration.
 func GenerateCaptcha(config config.CaptchaConfig, writer io.Writer) (*Captcha, error) {
 	digits := captcha.RandomDigits(config.Length)
-	_, err := captcha.NewImage(string(captcha.RandomDigits(idLength)), digits, config.Width, config.Height).WriteTo(writer)
-	if err != nil {
+
+	id := string(captcha.RandomDigits(idLength))
+	if _, err := captcha.NewImage(id, digits, config.Width, config.Height).WriteTo(writer); err != nil {
 		return nil, err
 	}
+
 	return &Captcha{
 		Digits:     digits,
 		Length:     config.Length,
@@ -46,10 +48,13 @@ func VerifyCaptcha(id string, digits []byte) bool {
 // Refresh renews the captcha image and expiration time.
 func (c *Captcha) Refresh(writer io.Writer) error {
 	c.Digits = captcha.RandomDigits(c.Length)
-	_, err := captcha.NewImage(string(captcha.RandomDigits(idLength)), c.Digits, c.Width, c.Height).WriteTo(writer)
-	if err != nil {
+
+	id := string(captcha.RandomDigits(idLength))
+	if _, err := captcha.NewImage(id, c.Digits, c.Width, c.Height).WriteTo(writer); err != nil {
 		return err
 	}
+
 	c.ExpiresAt = time.Now().Add(c.Expiration)
+
 	return nil
 }
