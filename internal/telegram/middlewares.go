@@ -2,7 +2,6 @@ package telegram
 
 import (
 	"bytes"
-	"fmt"
 	"time"
 
 	config "github.com/plugfox/foxy-gram-server/internal/config"
@@ -50,48 +49,8 @@ func kickUser(bot *tele.Bot, chat *tele.Chat, user *tele.User) error {
 	}, true)
 }
 
-func buildCaptchaMessage(conf config.CaptchaConfig, user tele.User) (*captchaMessage, error) {
-	var caption string
-	if username := user.Username; username != "" {
-		caption = fmt.Sprintf("@%s, please solve the captcha.\nReply with the code in the image.", username)
-	} else if firstName := user.FirstName; firstName != "" {
-		caption = "%s, please solve the captcha.\nReply with the code in the image."
-	} else {
-		caption = "Please solve the captcha.\nReply with the code in the image."
-	}
-	buffer := new(bytes.Buffer)
-	captcha, err := utility.GenerateCaptcha(conf, buffer)
-	if err != nil {
-		return nil, err
-	}
-
-	refreshBtn := tele.InlineButton{Text: "Refresh 🔄", Unique: "refresh_captcha"}
-	cancelBtn := tele.InlineButton{Text: "Cancel ❌", Unique: "cancel_captcha"}
-
-	return &captchaMessage{
-		captcha: captcha,
-		photo: tele.Photo{
-			File:    tele.FromReader(buffer),
-			Width:   captcha.Width,
-			Height:  captcha.Height,
-			Caption: caption,
-		},
-		reply: tele.ReplyMarkup{
-			ForceReply: true,
-			Selective:  user.Username != "",
-			InlineKeyboard: [][]tele.InlineButton{
-				{},
-				{},
-				{},
-				{},
-				{cancelBtn, refreshBtn},
-			},
-		},
-	}, nil
-}
-
-// Verify flow - verify the user with a captcha
-func verifyFlow(channel chan error, db *storage.Storage, config *config.Config, bot *tele.Bot, chat *tele.Chat, user *tele.User) {
+// Verify the user with a captcha
+/* func verifyUserWithCaptcha(channel chan error, db *storage.Storage, config *config.Config, bot *tele.Bot, chat *tele.Chat, user *tele.User) {
 	banned, err := db.IsBannedUser(model.UserID(user.ID))
 	if err != nil {
 		channel <- err
@@ -186,7 +145,6 @@ func verifyFlow(channel chan error, db *storage.Storage, config *config.Config, 
 			File:   tele.FromReader(captchaBuffer),
 			Width:  captchaPtr.Width,
 			Height: captchaPtr.Height,
-			/* Caption: caption, */
 		}, &tele.ReplyMarkup{
 			ForceReply: true,
 			Selective:  user.Username != "",
@@ -214,6 +172,10 @@ func verifyFlow(channel chan error, db *storage.Storage, config *config.Config, 
 		}
 		return nil
 	})
+} */
+
+// Verify the user with a CAS
+func verifyUserWithCAS(channel chan error, db *storage.Storage, config *config.Config, bot *tele.Bot, chat *tele.Chat, user *tele.User) {
 }
 
 // Verify user middleware - verify the user with a captcha
@@ -243,8 +205,11 @@ func verifyUserMiddleware(db *storage.Storage, config *config.Config, onError fu
 			}
 
 			verified, err := db.IsVerifiedUser(model.UserID(sender.ID))
-			if err != nil && onError != nil {
-				onError(err) // Log the error
+			if err != nil /* && onError != nil */ {
+				if onError != nil {
+					onError(err) // Log the error
+				}
+				return nil // Skip the current message
 			} else if verified {
 				return next(c) // Proceed to the next middleware if the user is verified
 			}
@@ -256,13 +221,29 @@ func verifyUserMiddleware(db *storage.Storage, config *config.Config, onError fu
 
 			// Verify the user asynchronously
 			defer c.Delete() // Delete the message, because the user is not verified
+
 			bot := c.Bot()
 
-			// todo: refactoring, add buttons with captcha emojies callback data
-			// Kick user if make wrong answer
+			banned, err := db.IsBannedUser(model.UserID(sender.ID))
+			if err != nil {
+				if onError != nil {
+					onError(err) // Log the error
+				}
+				return nil
+			} else if banned {
+				// Ban the user again if they are already banned
+				err = bot.Ban(chat, &tele.ChatMember{User: sender}, true)
+				if err != nil {
+					if onError != nil {
+						onError(err) // Log the error
+					}
+					return nil
+				}
+				return nil // Skip the current message
+			}
 
 			channel := make(chan error)
-			go verifyFlow(channel, db, config, bot, chat, sender)
+			go verifyUserWithCAS(channel, db, config, bot, chat, sender)
 			select {
 			case err := <-channel:
 				if err != nil && onError != nil {
