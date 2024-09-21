@@ -16,7 +16,7 @@ precommit: all vuln
 
 .PHONY: ci
 ci: ## CI build pipeline
-ci: lint-reports test govulncheck precommit diff
+ci: lint-reports test vuln precommit diff
 
 .PHONY: help
 help:
@@ -99,6 +99,7 @@ lint-reports: out download ## Lint reports
 .PHONY: vuln
 vuln: ## govulncheck
 	$(call print-target)
+	@go install golang.org/x/vuln/cmd/govulncheck@latest
 	@govulncheck ./...
 
 .PHONY: test
