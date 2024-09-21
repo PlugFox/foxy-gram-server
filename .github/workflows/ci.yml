@@ -111,8 +111,13 @@ jobs:
           SEM_VERSION="${GITHUB_REF#refs/tags/v}"
           BUILD_VERSION=$(date +%s)
           VERSION="${SEM_VERSION}+${BUILD_VERSION}"
-          echo "VERSION=$VERSION" >> $GITHUB_ENV
+
+          echo "SEM_VERSION=$SEM_VERSION" >> $GITHUB_OUTPUT
+          echo "BUILD_VERSION=$BUILD_VERSION" >> $GITHUB_OUTPUT
           echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+
           echo "Version set to $VERSION"
 
       - name: Set up Docker Buildx
@@ -131,4 +136,4 @@ jobs:
           file: ./Dockerfile
           platforms: linux/arm64, linux/amd64
           push: true
-          tags: ${{ env.docker-image }}:latest, ${{ env.docker-image }}:${{ steps.version.outputs.VERSION }}
+          tags: ${{ env.docker-image }}:latest, ${{ env.docker-image }}:${{ steps.version.outputs.SEM_VERSION }}
