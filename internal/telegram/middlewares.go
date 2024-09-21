@@ -21,15 +21,12 @@ type captchaMessage struct {
 
 // Check if the chat is allowed
 func allowedChats(config *config.Config, chatID int64) bool {
-	if config.Telegram.Chats == nil || len(config.Telegram.Chats) == 0 {
-		return true
-	}
 	for _, id := range config.Telegram.Chats {
 		if id == chatID {
 			return true
 		}
 	}
-	return false
+	return len(config.Telegram.Chats) == 0
 }
 
 // Restrict user rights
@@ -59,7 +56,16 @@ func isUserBanned(db *storage.Storage, bot *tele.Bot, user *tele.User) (bool, er
 		return true, nil
 	}
 
+	// ...
+
 	return false, nil
+}
+
+// Centralized error handling
+func handleError(onError func(error), err error) {
+	if onError != nil {
+		onError(err)
+	}
 }
 
 // Verify user middleware - verify the user with a captcha
@@ -67,76 +73,52 @@ func verifyUserMiddleware(db *storage.Storage, config *config.Config, onError fu
 	return func(next tele.HandlerFunc) tele.HandlerFunc {
 		return func(c tele.Context) error {
 			if c.Callback() != nil {
-				return next(c) // Thats a callback, proceed to the next middleware / handler
+				return next(c)
 			}
 
 			sender := c.Sender()
 			chat := c.Chat()
 
-			// Check if the user is admin or the chat is private
 			if chat != nil {
 				member, err := c.Bot().ChatMemberOf(chat, sender)
-				if err == nil {
-					isAdmin := member.Role == tele.Creator || member.Role == tele.Administrator
-					if isAdmin || chat.Private {
-						return next(c) // Proceed to the next middleware if the user is admin or the chat is private
-					}
+				if err == nil && (member.Role == tele.Creator || member.Role == tele.Administrator || chat.Private) {
+					return next(c)
 				}
 			}
 
 			if sender.ID == 0 || chat.ID == 0 || sender.ID == chat.ID || sender.IsBot || chat.Private {
-				return nil // Ignore if the user ID or chat ID is not available or thats a PM
+				return nil
 			}
 
-			// Should we verify the user in this chat?
 			if !allowedChats(config, chat.ID) {
-				return nil // Ignore if the chat is not in the allowed chats list
+				return nil
 			}
 
 			verified, err := db.IsVerifiedUser(model.UserID(sender.ID))
-			if err != nil /* && onError != nil */ {
-				if onError != nil {
-					onError(err) // Log the error
-				}
-				return nil // Skip the current message
-			} else if verified {
-				return next(c) // Proceed to the next middleware if the user is verified
+			if err != nil {
+				handleError(onError, err)
+				return nil
+			}
+			if verified {
+				return next(c)
 			}
 
-			// Verify the user asynchronously
-			defer c.Delete() // Delete the message, because the user is not verified
+			defer c.Delete()
 
 			bot := c.Bot()
-
 			banned, err := isUserBanned(db, bot, sender)
 			if err != nil {
-				if onError != nil {
-					onError(err) // Log the error
+				handleError(onError, err)
+				return nil
+			}
+			if banned {
+				if err := bot.Ban(chat, &tele.ChatMember{User: sender}, true); err != nil {
+					handleError(onError, err)
 				}
 				return nil
-			} else if banned {
-				// Ban the user again if they are already banned
-				err = bot.Ban(chat, &tele.ChatMember{User: sender}, true)
-				if err != nil {
-					if onError != nil {
-						onError(err) // Log the error
-					}
-					return nil
-				}
-				return nil // Skip the current message
 			}
 
-			// Check CAS ban
-			/* channel := make(chan error)
-			go verifyUserBan(channel, db, config, bot, chat, sender)
-			select {
-			case err := <-channel:
-				if err != nil && onError != nil {
-					onError(err) // Log the error
-				}
-			} */
-
-			return nil // Skip the current message
+			return nil
 		}
 	}
 }
