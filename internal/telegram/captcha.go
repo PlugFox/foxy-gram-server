@@ -50,6 +50,6 @@ func buildCaptchaMessage(conf config.CaptchaConfig, user tele.User) (*captchaMes
 }
 
 // todo: implement sendCaptchaMessage
-func sendCaptchaMessage(conf config.CaptchaConfig, bot *tele.Bot, chat *tele.Chat, user *tele.User) error {
+/* func sendCaptchaMessage(conf config.CaptchaConfig, bot *tele.Bot, chat *tele.Chat, user *tele.User) error {
 	return nil
-}
+} */

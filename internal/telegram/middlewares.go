@@ -152,9 +152,12 @@ func verifyUserMiddleware(db *storage.Storage, httpClient *http.Client, config *
 				handleError(onError, err)
 				return nil // Skip the current message
 			} else if banned {
-				if err := c.Bot().Ban(chat, &tele.ChatMember{User: sender}, true); err != nil {
+				bot := c.Bot()
+				// Ban the user again if they are already banned
+				if err := bot.Ban(chat, &tele.ChatMember{User: sender}, true); err != nil {
 					handleError(onError, err)
 				}
+				bot.Send(chat, fmt.Sprintf("User `%s` is banned", sender.Recipient()), tele.ModeMarkdownV2)
 				return nil
 			}
 
