@@ -26,7 +26,7 @@ type captchaMessage struct {
 	reply   tele.ReplyMarkup
 }
 
-// Check if the chat is allowed
+// Check if the chat is allowed.
 func allowedChats(config *config.Config, chatID int64) bool {
 	for _, id := range config.Telegram.Chats {
 		if id == chatID {
@@ -57,7 +57,7 @@ func kickUser(bot *tele.Bot, chat *tele.Chat, user *tele.User) error {
 	}, true)
 }
 
-// Verify the user with a local database and a CAS
+// Verify the user with a local database and a CAS.
 func isUserBanned(db *storage.Storage, httpClient *http.Client, user *tele.User) (bool, error) {
 	// Check local ban
 	banned, err := db.IsBannedUser(model.UserID(user.ID))
@@ -202,7 +202,7 @@ func verifyUserMiddleware(db *storage.Storage, httpClient *http.Client, config *
 	}
 }
 
-// storeMessages middleware - store messages in the database asynchronously
+// storeMessages middleware - store messages in the database asynchronously.
 func storeMessagesMiddleware(db *storage.Storage, onError func(error)) tele.MiddlewareFunc {
 	return func(next tele.HandlerFunc) tele.HandlerFunc {
 		return func(c tele.Context) error {

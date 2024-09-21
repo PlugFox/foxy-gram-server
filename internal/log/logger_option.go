@@ -34,7 +34,7 @@ func WithWriter(writer io.Writer) OptionFunc {
 // - DEBUG
 // - INFO
 // - WARN
-// - ERROR
+// - ERROR.
 func WithLevel(level string) OptionFunc {
 	if level == "" {
 		return func(*Config) {}

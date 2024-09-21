@@ -4,6 +4,7 @@ run:
   tests: true
 
 linters:
+  #enable-all: true # Включить все линтеры
   # Enable specific linter
   # https://golangci-lint.run/usage/linters/
   enable:

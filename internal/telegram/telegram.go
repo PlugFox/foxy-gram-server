@@ -8,10 +8,9 @@ import (
 
 	config "github.com/plugfox/foxy-gram-server/internal/config"
 	"github.com/plugfox/foxy-gram-server/internal/converters"
+	log "github.com/plugfox/foxy-gram-server/internal/log"
 	"github.com/plugfox/foxy-gram-server/internal/model"
 	"github.com/plugfox/foxy-gram-server/internal/storage"
-
-	log "github.com/plugfox/foxy-gram-server/internal/log"
 	tele "gopkg.in/telebot.v3"
 	"gopkg.in/telebot.v3/middleware"
 	mw "gopkg.in/telebot.v3/middleware"
@@ -111,17 +110,17 @@ func New(db *storage.Storage, httpClient *http.Client, config *config.Config, lo
 	}, nil
 }
 
-// Start the bot
+// Start the bot.
 func (t *Telegram) Start() {
 	t.bot.Start()
 }
 
-// Get the bot user
+// Get the bot user.
 func (t *Telegram) Me() *model.User {
 	return converters.UserFromTG(t.bot.Me).Seen()
 }
 
-// Stop the bot
+// Stop the bot.
 func (t *Telegram) Stop() {
 	t.bot.Stop()
 }

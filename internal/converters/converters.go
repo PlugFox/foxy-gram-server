@@ -8,7 +8,7 @@ import (
 	tele "gopkg.in/telebot.v3"
 )
 
-// Convert telebot message to database message
+// Convert telebot message to database message.
 func MessageFromTG(m *tele.Message) *model.Message {
 	// If the message is nil then return nil
 	if m == nil {
@@ -48,7 +48,7 @@ func MessageFromTG(m *tele.Message) *model.Message {
 	return msg
 }
 
-// Convert telebot message to database message origin
+// Convert telebot message to database message origin.
 func MessageOriginFromTG(m *tele.Message) *model.MessageOrigin {
 	if m.OriginalSender == nil && m.OriginalChat == nil {
 		// Если сообщение не переслано
@@ -73,7 +73,7 @@ func MessageOriginFromTG(m *tele.Message) *model.MessageOrigin {
 	return origin
 }
 
-// Convert telebot chat to database chat
+// Convert telebot chat to database chat.
 func ChatFromTG(c *tele.Chat) *model.Chat {
 	if c == nil {
 		return nil
@@ -87,7 +87,7 @@ func ChatFromTG(c *tele.Chat) *model.Chat {
 	}
 }
 
-// Convert telebot user to database user
+// Convert telebot user to database user.
 func UserFromTG(u *tele.User) *model.User {
 	if u == nil {
 		return nil

@@ -102,7 +102,7 @@ func New(config *config.Config, logger *slog.Logger) (*Storage, error) {
 	}, nil
 }
 
-// Close - close the database connection
+// Close - close the database connection.
 func (s *Storage) Close() error {
 	s.cache.Close()
 	sqlDB, err := s.db.DB()
@@ -112,28 +112,28 @@ func (s *Storage) Close() error {
 	return sqlDB.Close()
 }
 
-// ClearCache - clear the cache
+// ClearCache - clear the cache.
 func (s *Storage) ClearCache() {
 	s.cache.Clear()
 }
 
-// cacheGet - get the value from the cache
+// cacheGet - get the value from the cache.
 func (s *Storage) cacheGet(key string) (interface{}, bool) {
 	value, ok := s.cache.Get(key)
 	return value, ok
 }
 
-// cacheSet - set the value to the cache
+// cacheSet - set the value to the cache.
 func (s *Storage) cacheSet(key string, value interface{}) {
 	s.cache.Set(key, value, 0)
 }
 
-// cacheDel - delete the value from the cache
+// cacheDel - delete the value from the cache.
 func (s *Storage) cacheDel(key string) {
 	s.cache.Del(key)
 }
 
-// UserByID - get the user by ID
+// UserByID - get the user by ID.
 func (s *Storage) UserByID(id model.UserID) (*model.User, error) {
 	var user model.User
 	if err := s.db.First(&user, id).Error; err != nil {
@@ -142,7 +142,7 @@ func (s *Storage) UserByID(id model.UserID) (*model.User, error) {
 	return &user, nil
 }
 
-// UserByUsername - get the user by username
+// UserByUsername - get the user by username.
 func (s *Storage) UserByUsername(username string) (*model.User, error) {
 	var user model.User
 	if err := s.db.Where("username = ?", username).First(&user).Error; err != nil {
@@ -151,17 +151,17 @@ func (s *Storage) UserByUsername(username string) (*model.User, error) {
 	return &user, nil
 }
 
-// UpsertUser - insert or update the user
+// UpsertUser - insert or update the user.
 func (s *Storage) UpsertUser(user *model.User) error {
 	return s.db.Save(user).Error
 }
 
-// DeleteUser - delete the user
+// DeleteUser - delete the user.
 func (s *Storage) DeleteUser(user *model.User) error {
 	return s.db.Delete(user).Error
 }
 
-// Users - get all users
+// Users - get all users.
 func (s *Storage) Users() ([]model.User, error) {
 	var users []model.User
 	if err := s.db.Find(&users).Error; err != nil {
@@ -170,14 +170,14 @@ func (s *Storage) Users() ([]model.User, error) {
 	return users, nil
 }
 
-// Struct for the UpsertMessage function
+// Struct for the UpsertMessage function.
 type UpsertMessageInput struct {
 	Message *model.Message
 	Chats   []*model.Chat
 	Users   []*model.User
 }
 
-// UpsertMessage - insert or update the message, and the users if any
+// UpsertMessage - insert or update the message, and the users if any.
 func (s *Storage) UpsertMessage(input UpsertMessageInput) error {
 	if (input.Message == nil) || (input.Message.ID == 0) {
 		return nil
@@ -299,7 +299,7 @@ func (s *Storage) UpsertUsers(tx *gorm.DB, data ...*model.User) error {
 	return nil
 }
 
-// KVSet sets a key-value pair
+// KVSet sets a key-value pair.
 func (s *Storage) KVSet(key string, value interface{}) error {
 	// Serialize the value using gob
 	var buffer bytes.Buffer
@@ -326,7 +326,7 @@ func (s *Storage) KVSet(key string, value interface{}) error {
 	return nil
 }
 
-// KVDelete deletes a key-value pair
+// KVDelete deletes a key-value pair.
 func (s *Storage) KVDelete(key string) error {
 	// Remove from cache
 	s.cache.Del(fmt.Sprintf("_kv#%s", key))
@@ -335,7 +335,7 @@ func (s *Storage) KVDelete(key string) error {
 	return s.db.Delete(&model.KeyValue{}, "key = ?", key).Error
 }
 
-// KVGet finds a key-value pair by key
+// KVGet finds a key-value pair by key.
 func (s *Storage) KVGet(key string) (*model.KeyValue, error) {
 	var kv model.KeyValue
 
@@ -358,7 +358,7 @@ func (s *Storage) KVGet(key string) (*model.KeyValue, error) {
 	return &kv, nil
 }
 
-// Check if the user is verified
+// Check if the user is verified.
 func (s *Storage) IsVerifiedUser(userID model.UserID) (bool, error) {
 	cacheKey := fmt.Sprintf("_verified#%s", userID.ToString())
 	if verified, ok := s.cacheGet(cacheKey); ok {
@@ -386,7 +386,7 @@ func (s *Storage) IsVerifiedUser(userID model.UserID) (bool, error) {
 	return exists, nil
 }
 
-// Check if the user is banned and delete expired bans
+// Check if the user is banned and delete expired bans.
 func (s *Storage) IsBannedUser(userID model.UserID) (bool, error) {
 	var bannedUser model.BannedUser
 	err := s.db.Model(&model.BannedUser{}).
@@ -411,7 +411,7 @@ func (s *Storage) IsBannedUser(userID model.UserID) (bool, error) {
 	return true, nil
 }
 
-// Set the user as verified
+// Set the user as verified.
 func (s *Storage) VerifyUser(verifiedUser *model.VerifiedUser) error {
 	userID := verifiedUser.ID.ToString()
 	s.cacheSet(fmt.Sprintf("_verified#%s", userID), true)
@@ -433,7 +433,7 @@ func (s *Storage) VerifyUser(verifiedUser *model.VerifiedUser) error {
 	return err
 }
 
-// Ban the user
+// Ban the user.
 func (s *Storage) BanUser(bannedUser *model.BannedUser) error {
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		// Remove the user from the verified list

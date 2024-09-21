@@ -5,7 +5,7 @@ import (
 	"encoding/gob"
 )
 
-// Prepare the hash function for the models to be used in the `utility.Hash(obj)` function
+// Prepare the hash function for the models to be used in the `utility.Hash(obj)` function.
 func InitHashFunction() {
 	// Register types for gob serialization
 	gob.Register(sql.NullTime{})

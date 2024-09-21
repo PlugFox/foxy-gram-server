@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// Setting environment variables
+// Setting environment variables.
 func setEnvVars(t *testing.T, vars map[string]string) {
 	t.Helper()
 	for key, value := range vars {

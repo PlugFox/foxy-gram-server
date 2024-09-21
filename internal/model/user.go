@@ -14,7 +14,7 @@ type (
 )
 
 type User struct {
-	ID UserID `hash:"x" gorm:"PrimaryKey" json:"id"` // Unique identifier for this user or bot.
+	ID UserID `gorm:"PrimaryKey" hash:"x" json:"id"` // Unique identifier for this user or bot.
 
 	// User fields
 	FirstName    string `hash:"x" json:"first_name"`    // User's or bot's first name.
@@ -29,11 +29,11 @@ type User struct {
 
 	// Meta fields
 	UpdatedAt time.Time      `gorm:"autoUpdateTime" json:"updated_at"` // Time when the user was last updated.
-	DeletedAt gorm.DeletedAt `gorm:"index" json:"deleted_at"`          // Soft delete.
+	DeletedAt gorm.DeletedAt `gorm:"index"          json:"deleted_at"`          // Soft delete.
 	Extra     string         `json:"extra"`                            // Extra data.
 }
 
-// Update seen time for the user
+// Update seen time for the user.
 func (obj *User) Seen() *User {
 	obj.LastSeen = sql.NullTime{
 		Time:  time.Now().UTC(),
@@ -42,27 +42,27 @@ func (obj *User) Seen() *User {
 	return obj
 }
 
-// TableName - set the table name
+// TableName - set the table name.
 func (User) TableName() string {
 	return "users"
 }
 
-// GetID - get the user ID
+// GetID - get the user ID.
 func (obj *User) GetID() int64 {
 	return int64(obj.ID)
 }
 
-// ToInt64 - get the user ID
+// ToInt64 - get the user ID.
 func (id UserID) ToInt64() int64 {
 	return int64(id)
 }
 
-// ToString - get the user ID
+// ToString - get the user ID.
 func (id UserID) ToString() string {
 	return strconv.FormatInt(int64(id), 10)
 }
 
-// Hash - calculate the hash of the object
+// Hash - calculate the hash of the object.
 func (obj *User) Hash() (string, error) {
 	return utility.Hash(obj)
 }

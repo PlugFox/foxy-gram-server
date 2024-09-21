@@ -6,11 +6,11 @@ import (
 	"github.com/plugfox/foxy-gram-server/internal/utility"
 )
 
-// Verified user represents a verified user in the system
+// Verified user represents a verified user in the system.
 type VerifiedUser struct {
-	ID         UserID    `hash:"x" gorm:"primaryKey" json:"id"`
-	VerifiedAt time.Time `hash:"x" gorm:"not null" json:"verified_at"` // The time when the user was verified
-	Reason     string    `hash:"x" gorm:"not null" json:"reason"`      // Reason for the verification
+	ID         UserID    `gorm:"primaryKey" hash:"x" json:"id"`
+	VerifiedAt time.Time `gorm:"not null"   hash:"x" json:"verified_at"` // The time when the user was verified
+	Reason     string    `gorm:"not null"   hash:"x" json:"reason"`      // Reason for the verification
 	// ExpiresAt  sql.NullTime `hash:"x" gorm:"null" json:"expires_at"`      // Expiry time of the verification, null if indefinite
 
 	// Meta fields
@@ -18,17 +18,17 @@ type VerifiedUser struct {
 	Extra     string    `json:"extra"`                            // Extra data.
 }
 
-// TableName - set the table name
+// TableName - set the table name.
 func (VerifiedUser) TableName() string {
 	return "verified"
 }
 
-// GetID - get the user ID
+// GetID - get the user ID.
 func (obj *VerifiedUser) GetID() int64 {
 	return int64(obj.ID)
 }
 
-// Hash - calculate the hash of the object
+// Hash - calculate the hash of the object.
 func (obj *VerifiedUser) Hash() (string, error) {
 	return utility.Hash(obj)
 }

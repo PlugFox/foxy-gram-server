@@ -12,7 +12,7 @@ import (
 
 var errorNoHashableFields = errors.New("no hashable fields found")
 
-// Hash - calculate the hash of the object
+// Hash - calculate the hash of the object.
 func Hash(obj interface{}) (string /* [32]byte */, error) {
 	hashable := make(map[string]interface{})
 
