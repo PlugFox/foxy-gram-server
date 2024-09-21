@@ -5,10 +5,10 @@ import (
 	"fmt"
 )
 
-// Статическая ошибка для несоответствия типов.
+// Static error for unexpected type.
 var ErrorUnexpectedType = errors.New("unexpected type")
 
-// Функция для оборачивания статической ошибки дополнительной информацией.
+// WrapUnexpectedType wraps the error for unexpected type.
 func WrapUnexpectedType(expected string, actual interface{}) error {
 	return fmt.Errorf("%w: expected %s, got %T", ErrorUnexpectedType, expected, actual)
 }

@@ -8,6 +8,8 @@ import (
 	"github.com/ilyakaznacheev/cleanenv"
 )
 
+var errorFailedToReadConfig = fmt.Errorf("failed to read config")
+
 // Config is the main config struct.
 type Config struct {
 	Environment string `env:"ENVIRONMENT" env-default:"production" env-description:"Environment name"                                     yaml:"environment"`
@@ -60,7 +62,7 @@ type APIConfig struct {
 type DatabaseConfig struct {
 	Driver     string `env:"DATABASE_DRIVER"     env-default:"sqlite3"    env-description:"Database driver to use: sqlite3 | postgres | mysql" yaml:"driver"`
 	Connection string `env:"DATABASE_CONNECTION" env-default:"db.sqlite3" env-description:"Connection string or path for SQLite database"      yaml:"connection"`
-	Logging    bool   `env:"DATABASE_LOGGING"    env-default:"false"      env-description:"Enable database logging"                                  yaml:"logging"`
+	Logging    bool   `env:"DATABASE_LOGGING"    env-default:"false"      env-description:"Enable database logging"                            yaml:"logging"`
 }
 
 // IsValid - check if the google sign in config is valid.
@@ -68,28 +70,11 @@ func IsValid() bool {
 	return true
 }
 
-// Error - наша собственная структура для ошибок.
-type Error struct {
-	Message string
-}
-
-// Error - реализация метода Error для нашего типа ошибки.
-func (e *Error) Error() string {
-	return e.Message
-}
-
+// MustLoadConfig - load config from file or environment variables.
 func MustLoadConfig() (*Config, error) {
-	/* debugMode, err := strconv.ParseBool(os.Getenv("DEBUG_MODE"))
-	if err != nil {
-		debugMode = false
-	} */
-
 	configPath := os.Getenv("CONFIG_PATH")
 	if configPath == "" {
 		configPath = "config.yml"
-		/* return nil, &Error{
-			Message: "CONFIG_PATH is not set",
-		} */
 	}
 
 	var config Config
@@ -98,15 +83,16 @@ func MustLoadConfig() (*Config, error) {
 	_, err := os.Stat(configPath)
 
 	if os.IsNotExist(err) {
+		// Read environment variables if config file does not exist
 		err = cleanenv.ReadEnv(&config)
 	} else if err == nil {
+		// Read config file if it exists
 		err = cleanenv.ReadConfig(configPath, &config)
 	}
 
+	// Check if there was an error reading the config file
 	if err != nil {
-		return nil, &Error{
-			Message: fmt.Sprintf("Cannot read config file: %s", err),
-		}
+		return nil, errorFailedToReadConfig
 	}
 
 	return &config, nil

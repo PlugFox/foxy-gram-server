@@ -1,16 +1,18 @@
-package config
+package config_test
 
 import (
 	"os"
 	"testing"
 	"time"
 
+	"github.com/plugfox/foxy-gram-server/internal/config"
 	"github.com/stretchr/testify/require"
 )
 
 // Setting environment variables.
 func setEnvVars(t *testing.T, vars map[string]string) {
 	t.Helper()
+
 	for key, value := range vars {
 		err := os.Setenv(key, value)
 		require.NoError(t, err, "failed to set env var %s", key)
@@ -23,8 +25,8 @@ func setEnvVars(t *testing.T, vars map[string]string) {
 }
 
 func TestConfigTelegramEnv(t *testing.T) {
-	expected := &Config{
-		Telegram: TelegramConfig{
+	expected := &config.Config{
+		Telegram: config.TelegramConfig{
 			Token:     "123",
 			Timeout:   10 * time.Second,
 			Chats:     []int64{1, 2, 3},
@@ -45,7 +47,7 @@ func TestConfigTelegramEnv(t *testing.T) {
 		"TELEGRAM_IGNORE_VIA": "false",
 	})
 
-	actual, err := MustLoadConfig()
+	actual, err := config.MustLoadConfig()
 	require.NoError(t, err)
 	require.NotNil(t, actual)
 	require.NotNil(t, actual.Telegram)

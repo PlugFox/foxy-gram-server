@@ -24,6 +24,8 @@ import (
 	"gorm.io/gorm/schema"
 )
 
+var errorTypeAssertionToBytesFailed = errors.New("type assertion to []byte failed")
+
 type Storage struct {
 	cache *ristretto.Cache[string, interface{}]
 	db    *gorm.DB
@@ -36,6 +38,7 @@ func New(config *config.Config, log *slog.Logger) (*Storage, error) {
 		maxCost     = 1 << 28 // maximum cost of cache (256 MiB).
 		bufferItems = 64      // number of keys per Get buffer.
 	)
+
 	cache, err := ristretto.NewCache(&ristretto.Config[string, interface{}]{
 		NumCounters: numCounters,
 		MaxCost:     maxCost,
@@ -48,6 +51,7 @@ func New(config *config.Config, log *slog.Logger) (*Storage, error) {
 				return int64(len(v)) // If []byte, return its length
 			case int, int64, float64:
 				const intCost = 8
+
 				return intCost //  int, int64, float64 - 8 bytes
 			default:
 				return 1 // minimal cost for other types (bool, struct, etc)
@@ -86,7 +90,9 @@ func New(config *config.Config, log *slog.Logger) (*Storage, error) {
 	// Migrations
 	const timeoutSeconds = 15 * 60
 	ctx, cancel := context.WithTimeout(context.Background(), timeoutSeconds*time.Second)
+
 	defer cancel() // releases resources if slowOperation completes before timeout elapses
+
 	if err := db.WithContext(ctx).AutoMigrate(
 		&model.KeyValue{},
 		&model.User{},
@@ -114,10 +120,12 @@ func New(config *config.Config, log *slog.Logger) (*Storage, error) {
 // Close - close the database connection.
 func (s *Storage) Close() error {
 	s.cache.Close()
+
 	sqlDB, err := s.db.DB()
 	if err != nil {
 		return err
 	}
+
 	return sqlDB.Close()
 }
 
@@ -128,8 +136,7 @@ func (s *Storage) ClearCache() {
 
 // cacheGet - get the value from the cache.
 func (s *Storage) cacheGet(key string) (interface{}, bool) {
-	value, ok := s.cache.Get(key)
-	return value, ok
+	return s.cache.Get(key)
 }
 
 // cacheSet - set the value to the cache.
@@ -148,6 +155,7 @@ func (s *Storage) UserByID(id model.UserID) (*model.User, error) {
 	if err := s.db.First(&user, id).Error; err != nil {
 		return nil, err
 	}
+
 	return &user, nil
 }
 
@@ -157,6 +165,7 @@ func (s *Storage) UserByUsername(username string) (*model.User, error) {
 	if err := s.db.Where("username = ?", username).First(&user).Error; err != nil {
 		return nil, err
 	}
+
 	return &user, nil
 }
 
@@ -176,6 +185,7 @@ func (s *Storage) Users() ([]model.User, error) {
 	if err := s.db.Find(&users).Error; err != nil {
 		return nil, err
 	}
+
 	return users, nil
 }
 
@@ -223,8 +233,11 @@ func (s *Storage) UpsertChats(tx *gorm.DB, data ...*model.Chat) error {
 	updateCache := make(map[string]string)
 	batchToSave := make(map[string]*model.Chat)
 
-	var key string
-	var hash string
+	var (
+		key  string
+		hash string
+	)
+
 	for _, chat := range data {
 		if chat == nil {
 			continue
@@ -233,6 +246,7 @@ func (s *Storage) UpsertChats(tx *gorm.DB, data ...*model.Chat) error {
 		key = fmt.Sprintf("_chat#%s", chat.ID.ToString())
 		hash, _ = chat.Hash()
 		cache, ok := s.cacheGet(key)
+
 		if !ok || hash != cache {
 			updateCache[key] = hash
 			batchToSave[key] = chat
@@ -247,11 +261,13 @@ func (s *Storage) UpsertChats(tx *gorm.DB, data ...*model.Chat) error {
 				for _, chat := range batchToSave {
 					result = append(result, chat)
 				}
+
 				return result
 			}(),
 		).Error; err != nil {
 			return err
 		}
+
 		for key, hash := range updateCache {
 			s.cacheSet(key, hash)
 		}
@@ -271,8 +287,11 @@ func (s *Storage) UpsertUsers(tx *gorm.DB, data ...*model.User) error {
 	updateCache := make(map[string]string)
 	batchToSave := make(map[string]*model.User)
 
-	var key string
-	var hash string
+	var (
+		key  string
+		hash string
+	)
+
 	for _, user := range data {
 		if user == nil {
 			continue
@@ -281,6 +300,7 @@ func (s *Storage) UpsertUsers(tx *gorm.DB, data ...*model.User) error {
 		key = fmt.Sprintf("_user#%s", user.ID.ToString())
 		hash, _ = user.Hash()
 		cache, ok := s.cacheGet(key)
+
 		if !ok || hash != cache {
 			updateCache[key] = hash
 			batchToSave[key] = user
@@ -295,11 +315,13 @@ func (s *Storage) UpsertUsers(tx *gorm.DB, data ...*model.User) error {
 				for _, user := range batchToSave {
 					result = append(result, user)
 				}
+
 				return result
 			}(),
 		).Error; err != nil {
 			return err
 		}
+
 		for key, hash := range updateCache {
 			s.cacheSet(key, hash)
 		}
@@ -313,10 +335,11 @@ func (s *Storage) KVSet(key string, value interface{}) error {
 	// Serialize the value using gob
 	var buffer bytes.Buffer
 	enc := gob.NewEncoder(&buffer)
-	err := enc.Encode(value)
-	if err != nil {
+
+	if err := enc.Encode(value); err != nil {
 		return err
 	}
+
 	bytes := buffer.Bytes()
 
 	// Save to cache
@@ -327,11 +350,13 @@ func (s *Storage) KVSet(key string, value interface{}) error {
 		Key:   key,
 		Value: bytes,
 	}
-	err = s.db.Clauses(clause.OnConflict{UpdateAll: true}).Save(kv).Error
-	if err != nil {
+
+	if err := s.db.Clauses(clause.OnConflict{UpdateAll: true}).Save(kv).Error; err != nil {
 		s.cache.Del(fmt.Sprintf("_kv#%s", key))
+
 		return err
 	}
+
 	return nil
 }
 
@@ -352,7 +377,12 @@ func (s *Storage) KVGet(key string) (*model.KeyValue, error) {
 	val, _ := s.cache.Get(fmt.Sprintf("_kv#%s", key))
 	if val != nil {
 		kv.Key = key
-		kv.Value = val.([]byte)
+		if bytes, ok := val.([]byte); ok {
+			kv.Value = bytes
+		} else {
+			return nil, errorTypeAssertionToBytesFailed
+		}
+
 		return &kv, nil
 	}
 
@@ -381,9 +411,11 @@ func (s *Storage) IsVerifiedUser(userID model.UserID) (bool, error) {
 		Where("id = ?", userID).
 		Limit(1).
 		Scan(&exists).Error
+
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		// If user is not found, cache and return false
 		s.cacheSet(cacheKey, false)
+
 		return false, nil
 	} else if err != nil {
 		// Return error for other issues
@@ -392,6 +424,7 @@ func (s *Storage) IsVerifiedUser(userID model.UserID) (bool, error) {
 
 	// Cache the result and return true
 	s.cacheSet(cacheKey, exists)
+
 	return exists, nil
 }
 
@@ -401,6 +434,7 @@ func (s *Storage) IsBannedUser(userID model.UserID) (bool, error) {
 	err := s.db.Model(&model.BannedUser{}).
 		Where("id = ?", userID).
 		First(&bannedUser).Error
+
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return false, nil // User is not banned
 	} else if err != nil {
@@ -413,6 +447,7 @@ func (s *Storage) IsBannedUser(userID model.UserID) (bool, error) {
 		if err := s.db.Delete(&bannedUser).Error; err != nil {
 			return false, err
 		}
+
 		return false, nil // User is not banned anymore
 	}
 
@@ -424,7 +459,8 @@ func (s *Storage) IsBannedUser(userID model.UserID) (bool, error) {
 func (s *Storage) VerifyUser(verifiedUser *model.VerifiedUser) error {
 	userID := verifiedUser.ID.ToString()
 	s.cacheSet(fmt.Sprintf("_verified#%s", userID), true)
-	err := s.db.Transaction(func(tx *gorm.DB) error {
+
+	if err := s.db.Transaction(func(tx *gorm.DB) error {
 		// Remove the user from the banned list
 		if err := tx.Delete(&model.BannedUser{}, "id = ?", verifiedUser.ID).Error; err != nil {
 			return err
@@ -434,17 +470,20 @@ func (s *Storage) VerifyUser(verifiedUser *model.VerifiedUser) error {
 		if err := tx.Clauses(clause.OnConflict{UpdateAll: true}).Create(verifiedUser).Error; err != nil {
 			return err
 		}
+
 		return nil
-	})
-	if err != nil {
+	}); err != nil {
 		s.cacheDel(fmt.Sprintf("_verified#%s", userID))
+
+		return err
 	}
-	return err
+
+	return nil
 }
 
 // Ban the user.
 func (s *Storage) BanUser(bannedUser *model.BannedUser) error {
-	err := s.db.Transaction(func(tx *gorm.DB) error {
+	if err := s.db.Transaction(func(tx *gorm.DB) error {
 		// Remove the user from the verified list
 		if err := tx.Delete(&model.VerifiedUser{}, "id = ?", bannedUser.ID).Error; err != nil {
 			return err
@@ -454,7 +493,11 @@ func (s *Storage) BanUser(bannedUser *model.BannedUser) error {
 		if err := tx.Clauses(clause.OnConflict{UpdateAll: true}).Create(bannedUser).Error; err != nil {
 			return err
 		}
+
 		return nil
-	})
-	return err
+	}); err != nil {
+		return err
+	}
+
+	return nil
 }

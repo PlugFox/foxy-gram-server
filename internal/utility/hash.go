@@ -25,10 +25,10 @@ func Hash(obj interface{}) (string /* [32]byte */, error) {
 
 	// Используем рефлексию для извлечения значений полей с тегом "hash"
 	hasFields := false
-	for i := 0; i < val.NumField(); i++ {
+
+	for i := range make([]struct{}, val.NumField()) {
 		field := typ.Field(i)
-		_, ok := field.Tag.Lookup("hash") // Проверяем наличие тега "hash" без проверки значения
-		if ok {                           // Если тег "hash" присутствует
+		if _, ok := field.Tag.Lookup("hash"); ok { // Если тег "hash" присутствует
 			fieldValue := val.Field(i)
 			hashable[field.Name] = fieldValue.Interface()
 			hasFields = true
@@ -45,6 +45,7 @@ func Hash(obj interface{}) (string /* [32]byte */, error) {
 	for k := range hashable {
 		keys = append(keys, k)
 	}
+
 	sort.Strings(keys) // Сортируем ключи по алфавиту
 
 	// Сериализуем выбранные поля через gob

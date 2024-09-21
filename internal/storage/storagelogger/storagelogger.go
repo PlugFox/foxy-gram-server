@@ -24,6 +24,7 @@ func NewGormSlogLogger(slog *slog.Logger) *GormSlogLogger {
 // LogMode sets the log level for GORM logger.
 func (l *GormSlogLogger) LogMode(level logger.LogLevel) logger.Interface {
 	l.level = level
+
 	return l
 }
 
@@ -49,7 +50,12 @@ func (l *GormSlogLogger) Error(ctx context.Context, msg string, data ...interfac
 }
 
 // Trace logs SQL queries with their execution time, affected rows, and errors.
-func (l *GormSlogLogger) Trace(ctx context.Context, begin time.Time, fc func() (sql string, rowsAffected int64), err error) {
+func (l *GormSlogLogger) Trace(
+	ctx context.Context,
+	begin time.Time,
+	fc func() (sql string, rowsAffected int64),
+	err error,
+) {
 	if l.level <= logger.Silent {
 		return
 	}
@@ -58,8 +64,17 @@ func (l *GormSlogLogger) Trace(ctx context.Context, begin time.Time, fc func() (
 	sql, rows := fc()
 
 	if err != nil {
-		l.logger.ErrorContext(ctx, "SQL execution error", slog.String("sql", sql), slog.Int64("rows", rows), slog.Duration("elapsed", elapsed), slog.Any("err", err))
+		l.logger.ErrorContext(ctx, "SQL execution error",
+			slog.String("sql", sql),
+			slog.Int64("rows", rows),
+			slog.Duration("elapsed", elapsed),
+			slog.Any("err", err),
+		)
 	} else {
-		l.logger.InfoContext(ctx, "SQL executed", slog.String("sql", sql), slog.Int64("rows", rows), slog.Duration("elapsed", elapsed))
+		l.logger.InfoContext(ctx, "SQL executed",
+			slog.String("sql", sql),
+			slog.Int64("rows", rows),
+			slog.Duration("elapsed", elapsed),
+		)
 	}
 }

@@ -11,7 +11,7 @@ type Config struct {
 }
 
 type Option interface {
-	apply(*Config)
+	apply(config *Config)
 }
 
 type OptionFunc func(*Config)

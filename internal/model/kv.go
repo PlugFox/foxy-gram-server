@@ -30,11 +30,13 @@ func (KeyValue) TableName() string {
 func (kv *KeyValue) SetValue(value interface{}) error {
 	var buffer bytes.Buffer
 	enc := gob.NewEncoder(&buffer)
-	err := enc.Encode(value)
-	if err != nil {
+
+	if err := enc.Encode(value); err != nil {
 		return err
 	}
+
 	kv.Value = buffer.Bytes()
+
 	return nil
 }
 
@@ -43,7 +45,10 @@ func (kv *KeyValue) GetValue(out interface{}) error {
 	if len(kv.Value) == 0 {
 		return errorValueEmpty
 	}
+
 	buffer := bytes.NewBuffer(kv.Value)
+
 	dec := gob.NewDecoder(buffer)
+
 	return dec.Decode(out)
 }

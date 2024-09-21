@@ -78,6 +78,7 @@ func ChatFromTG(c *tele.Chat) *model.Chat {
 	if c == nil {
 		return nil
 	}
+
 	return &model.Chat{
 		ID:        model.ChatID(c.ID),
 		Type:      string(c.Type),
@@ -92,6 +93,7 @@ func UserFromTG(u *tele.User) *model.User {
 	if u == nil {
 		return nil
 	}
+
 	return &model.User{
 		ID:           model.UserID(u.ID),
 		FirstName:    u.FirstName,
