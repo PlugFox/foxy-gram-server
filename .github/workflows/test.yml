@@ -21,8 +21,8 @@ on:
       - "internal/**.go"
       - "pkg/**.go"
       - "Dockerfile"
-    paths-ignore:
-      - docs/**
+    #paths-ignore:
+    #  - docs/**
 
 jobs:
   test:
