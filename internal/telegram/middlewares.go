@@ -174,8 +174,17 @@ func kickUser(bot *tele.Bot, chat *tele.Chat, user *tele.User) error {
 	})
 } */
 
-// Verify the user with a CAS
-func verifyUserWithCAS(channel chan error, db *storage.Storage, config *config.Config, bot *tele.Bot, chat *tele.Chat, user *tele.User) {
+// Verify the user with a local database and a CAS
+func isUserBanned(db *storage.Storage, bot *tele.Bot, user *tele.User) (bool, error) {
+	// Check local ban
+	banned, err := db.IsBannedUser(model.UserID(user.ID))
+	if err != nil {
+		return false, err
+	} else if banned {
+		return true, nil
+	}
+
+	return false, nil
 }
 
 // Verify user middleware - verify the user with a captcha
@@ -190,7 +199,7 @@ func verifyUserMiddleware(db *storage.Storage, config *config.Config, onError fu
 			chat := c.Chat()
 
 			// Check if the user is admin or the chat is private
-			/* if chat != nil {
+			if chat != nil {
 				member, err := c.Bot().ChatMemberOf(chat, sender)
 				if err == nil {
 					isAdmin := member.Role == tele.Creator || member.Role == tele.Administrator
@@ -198,10 +207,15 @@ func verifyUserMiddleware(db *storage.Storage, config *config.Config, onError fu
 						return next(c) // Proceed to the next middleware if the user is admin or the chat is private
 					}
 				}
-			} */
+			}
 
 			if sender.ID == 0 || chat.ID == 0 || sender.ID == chat.ID || sender.IsBot || chat.Private {
 				return nil // Ignore if the user ID or chat ID is not available or thats a PM
+			}
+
+			// Should we verify the user in this chat?
+			if !allowedChats(config, chat.ID) {
+				return nil // Ignore if the chat is not in the allowed chats list
 			}
 
 			verified, err := db.IsVerifiedUser(model.UserID(sender.ID))
@@ -214,17 +228,12 @@ func verifyUserMiddleware(db *storage.Storage, config *config.Config, onError fu
 				return next(c) // Proceed to the next middleware if the user is verified
 			}
 
-			// Should we verify the user in this chat?
-			if !allowedChats(config, chat.ID) {
-				return nil // Ignore if the chat is not in the allowed chats list
-			}
-
 			// Verify the user asynchronously
 			defer c.Delete() // Delete the message, because the user is not verified
 
 			bot := c.Bot()
 
-			banned, err := db.IsBannedUser(model.UserID(sender.ID))
+			banned, err := isUserBanned(db, bot, sender)
 			if err != nil {
 				if onError != nil {
 					onError(err) // Log the error
@@ -242,14 +251,16 @@ func verifyUserMiddleware(db *storage.Storage, config *config.Config, onError fu
 				return nil // Skip the current message
 			}
 
-			channel := make(chan error)
-			go verifyUserWithCAS(channel, db, config, bot, chat, sender)
+			// Check CAS ban
+			/* channel := make(chan error)
+			go verifyUserBan(channel, db, config, bot, chat, sender)
 			select {
 			case err := <-channel:
 				if err != nil && onError != nil {
 					onError(err) // Log the error
 				}
-			}
+			} */
+
 			return nil // Skip the current message
 		}
 	}
