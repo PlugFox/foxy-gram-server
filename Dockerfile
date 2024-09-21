@@ -31,7 +31,8 @@ RUN --mount=target=. \
     go build -ldflags="-w -s" -o /app/service ./cmd/main.go
 
 # Create the final image
-FROM gcr.io/distroless/static:nonroot AS prd
+#FROM gcr.io/distroless/static:nonroot AS prd
+FROM debian:stable-slim AS prd
 
 # Copy the built binary
 COPY --link --from=build /app/service /service
