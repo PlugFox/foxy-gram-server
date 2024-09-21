@@ -60,6 +60,7 @@ type APIConfig struct {
 type DatabaseConfig struct {
 	Driver     string `env:"DATABASE_DRIVER"     env-default:"sqlite3"    env-description:"Database driver to use: sqlite3 | postgres | mysql" yaml:"driver"`
 	Connection string `env:"DATABASE_CONNECTION" env-default:"db.sqlite3" env-description:"Connection string or path for SQLite database"      yaml:"connection"`
+	Logging    bool   `env:"DATABASE_LOGGING"    env-default:"false"      env-description:"Enable database logging"                                  yaml:"logging"`
 }
 
 // IsValid - check if the google sign in config is valid.

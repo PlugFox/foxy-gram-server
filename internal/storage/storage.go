@@ -63,11 +63,17 @@ func New(config *config.Config, logger *slog.Logger) (*Storage, error) {
 		return nil, err
 	}
 
+	// Log SQL queries if enabled
+	var dbLogger *storage_logger.GormSlogLogger
+	if config.Database.Logging {
+		dbLogger = storage_logger.NewGormSlogLogger(logger)
+	}
+
 	db, err := gorm.Open(
 		dialector,
 		&gorm.Config{
 			NamingStrategy: schema.NamingStrategy{},
-			Logger:         storage_logger.NewGormSlogLogger(logger),
+			Logger:         dbLogger,
 			NowFunc:        func() time.Time { return time.Now().UTC() },
 		})
 	if err != nil {
