@@ -117,6 +117,18 @@ func New(config *config.Config, log *slog.Logger) (*Storage, error) {
 	}, nil
 }
 
+// Status - get the status of the database connection.
+func (s *Storage) Status() (string, error) {
+	var result int
+	if err := s.db.Raw("SELECT 1").Scan(&result).Error; err != nil {
+		return "error", err
+	}
+
+	s.cache.Get("status") // Just to show that the cache is working
+
+	return "ok", nil
+}
+
 // Close - close the database connection.
 func (s *Storage) Close() error {
 	s.cache.Close()

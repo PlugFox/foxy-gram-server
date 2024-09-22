@@ -2,9 +2,11 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	logByDefault "log"
 	"log/slog"
+	"net/http"
 	"os"
 	"os/signal"
 	"sync"
@@ -15,6 +17,7 @@ import (
 	"github.com/plugfox/foxy-gram-server/internal/httpclient"
 	log "github.com/plugfox/foxy-gram-server/internal/log"
 	"github.com/plugfox/foxy-gram-server/internal/model"
+	"github.com/plugfox/foxy-gram-server/internal/server"
 	storage "github.com/plugfox/foxy-gram-server/internal/storage"
 	"github.com/plugfox/foxy-gram-server/internal/telegram"
 
@@ -62,39 +65,54 @@ func main() {
 // It creates a channel to receive signals and a channel to indicate when the shutdown is complete.
 // Then it notifies the channel for SIGINT and SIGTERM signals and starts a goroutine to wait for the signal.
 // Once the signal is received, it shuts down the centrifuge node and indicates that the shutdown is complete.
-func waitExitSignal(sigCh chan os.Signal, t *telegram.Telegram /* n *centrifuge.Node, s *http.Server */) {
+func waitExitSignal(sigCh chan os.Signal, t *telegram.Telegram, s *server.Server /* n *centrifuge.Node */) {
 	wg := sync.WaitGroup{}
 
 	// Notify the channel for SIGINT and SIGTERM signals.
 	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
 
+	const timeout = 10 * time.Second
+
 	// Start a goroutine to wait for the signal and handle graceful shutdown.
 	wg.Add(1)
+
 	go func() {
 		defer wg.Done()
 
 		// Wait for the signal.
 		<-sigCh
-		_, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+
+		ctx, cancel := context.WithTimeout(context.Background(), timeout)
+
 		defer cancel()
-		//_ = n.Shutdown(ctx)
-		//_ = s.Shutdown(ctx)
+
+		// _ = n.Shutdown(ctx)
+
+		_ = s.Shutdown(ctx)
 	}()
 
 	// Handle Telegram bot shutdown.
 	wg.Add(1)
+
 	go func() {
 		defer wg.Done()
 
 		// Wait for the signal.
 		<-sigCh
 
+		// Create a channel to indicate when the shutdown is complete.
+		done := make(chan struct{})
+
 		// Stop the Telegram bot
-		t.Stop()
+		go func() {
+			defer close(done)
+			t.Stop()
+		}()
 
 		// Ensure the shutdown happens within 10 seconds.
 		select {
-		case <-time.After(10 * time.Second):
+		case <-done: // Done
+		case <-time.After(timeout): // Timeout
 		}
 	}()
 
@@ -103,6 +121,7 @@ func waitExitSignal(sigCh chan os.Signal, t *telegram.Telegram /* n *centrifuge.
 }
 
 func run(config *config.Config, logger *slog.Logger) error {
+	startedAt := time.Now()
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -139,9 +158,19 @@ func run(config *config.Config, logger *slog.Logger) error {
 		return fmt.Errorf("upserting user error: %w", err)
 	}
 
-	// TODO: Setup API server
-	// - health
-	// - metrics
+	// Setup API server
+	server := server.New(config, logger)
+	server.AddHealthCheck(
+		func() map[string]string {
+			dbStatus, _ := db.Status()
+
+			return map[string]string{
+				"db":     dbStatus,
+				"uptime": time.Since(startedAt).String(),
+			}
+		},
+	) // Add health check endpoint
+	server.AddEcho() // Add echo endpoint
 
 	// TODO: Setup Centrifuge server
 
@@ -150,24 +179,32 @@ func run(config *config.Config, logger *slog.Logger) error {
 	// Create a channel to shutdown the server.
 	sigCh := make(chan os.Signal, 1)
 
-	// Create a function to close the server.
+	// Create a function to stop the server.
 	// Call this function when the server needs to be closed.
-	close := func(sigCh chan os.Signal) func() {
+	/* stop := func(sigCh chan os.Signal) func() {
 		return func() {
 			sigCh <- syscall.SIGTERM // Close server.
 		}
-	}
+	} */
 
 	// Start the Telegram bot polling
 	go func() {
 		telegram.Start()
 	}()
 
+	// Start the server
+	go func() {
+		if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			logger.ErrorContext(ctx, "Server error", slog.String("error", err.Error()))
+			os.Exit(1) // Exit the program if the server fails to start.
+		}
+	}()
+
 	// Log the server start
 	logger.InfoContext(ctx, "Server started", slog.String("host", config.API.Host), slog.Int("port", config.API.Port))
 
 	// Wait for the SIGINT or SIGTERM signal to shutdown the server.
-	waitExitSignal(sigCh, telegram)
+	waitExitSignal(sigCh, telegram, server)
 	close(sigCh)
 
 	return nil

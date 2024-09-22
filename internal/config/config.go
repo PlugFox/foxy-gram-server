@@ -51,11 +51,11 @@ type CaptchaConfig struct {
 
 // API config.
 type APIConfig struct {
-	Host         string        `env:"API_HOST"          env-default:"localhost" env-description:"API host address to bind to" yaml:"host"`
-	Port         int           `env:"API_PORT"          env-default:"8080"      env-description:"API port to bind to"         yaml:"port"`
-	ReadTimeout  time.Duration `env:"API_READ_TIMEOUT"  env-default:"10s"       yaml:"read_timeout"`
-	WriteTimeout time.Duration `env:"API_WRITE_TIMEOUT" env-default:"10s"       yaml:"write_timeout"`
-	IdleTimeout  time.Duration `env:"API_IDLE_TIMEOUT"  env-default:"15s"       yaml:"idle_timeout"`
+	Host         string        `env:"API_HOST"          env-default:""     env-description:"API host address to bind to" yaml:"host"`
+	Port         int           `env:"API_PORT"          env-default:"8080" env-description:"API port to bind to"         yaml:"port"`
+	ReadTimeout  time.Duration `env:"API_READ_TIMEOUT"  env-default:"10s"  yaml:"read_timeout"`
+	WriteTimeout time.Duration `env:"API_WRITE_TIMEOUT" env-default:"10s"  yaml:"write_timeout"`
+	IdleTimeout  time.Duration `env:"API_IDLE_TIMEOUT"  env-default:"15s"  yaml:"idle_timeout"`
 }
 
 // SQLite / PostgreSQL / MySQL config for GORM dialector.
