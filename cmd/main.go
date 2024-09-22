@@ -161,12 +161,14 @@ func run(config *config.Config, logger *slog.Logger) error {
 	// Setup API server
 	server := server.New(config, logger)
 	server.AddHealthCheck(
-		func() map[string]string {
-			dbStatus, _ := db.Status()
-			srvStatus, _ := server.Status()
-			tgStatus, _ := telegram.Status()
+		func() (bool, map[string]string) {
+			dbStatus, dbErr := db.Status()
+			srvStatus, srvErr := server.Status()
+			tgStatus, tgErr := telegram.Status()
 
-			return map[string]string{
+			isHealthy := dbErr == nil && srvErr == nil && tgErr == nil
+
+			return isHealthy, map[string]string{
 				"database": dbStatus,
 				"server":   srvStatus,
 				"telegram": tgStatus,

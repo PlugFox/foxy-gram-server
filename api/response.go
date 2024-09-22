@@ -7,13 +7,13 @@ import (
 
 // Error is a generic error structure that is used to send error responses to the client.
 type Error struct {
-	Code    string `json:"code,required"`
-	Message string `json:"message,required"`
+	Code    string `json:"code"`
+	Message string `json:"message"`
 }
 
 // Response is a generic response structure that is used to send responses to the client.
 type Response struct {
-	Status string      `json:"status,required"`
+	Status string      `json:"status"`
 	Data   interface{} `json:"data,omitempty"`
 	Error  *Error      `json:"error,omitempty"`
 }
@@ -26,12 +26,10 @@ func (e *Error) Error() string {
 // Set data to response
 func (rsp *Response) SetData(data interface{}) {
 	rsp.Data = data
-	rsp.Error = nil
 }
 
 // Set error to response
 func (rsp *Response) SetError(code string, message string) {
-	rsp.Data = nil
 	rsp.Error = &Error{
 		Code:    code,
 		Message: message,

@@ -66,12 +66,18 @@ func New(config *config.Config, logger *slog.Logger) *Server { // Router for HTT
 // The statusFunc function should return a map of status information.
 // The map keys will be used as the status names in the response.
 // The map values will be used as the status values in the response.
-func (srv *Server) AddHealthCheck(statusFunc func() map[string]string) {
+func (srv *Server) AddHealthCheck(statusFunc func() (bool, map[string]string)) {
 	srv.public.HandleFunc("/health", func(w http.ResponseWriter, _ *http.Request) {
 		rsp := &api.Response{}
-		status := statusFunc()
+		ok, status := statusFunc()
 		rsp.SetData(status)
-		rsp.Ok(w)
+
+		if ok {
+			rsp.Ok(w)
+		} else {
+			rsp.SetError("status_error", "One or more services are not healthy")
+			rsp.InternalServerError(w)
+		}
 	})
 }
 
