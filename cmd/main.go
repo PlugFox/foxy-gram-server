@@ -150,11 +150,20 @@ func run(config *config.Config, logger *slog.Logger) error {
 	// Create a channel to shutdown the server.
 	sigCh := make(chan os.Signal, 1)
 
+	// Create a function to close the server.
+	// Call this function when the server needs to be closed.
+	close := func(sigCh chan os.Signal) func() {
+		return func() {
+			sigCh <- syscall.SIGTERM // Close server.
+		}
+	}
+
 	// Start the Telegram bot polling
 	go func() {
 		telegram.Start()
 	}()
 
+	// Log the server start
 	logger.InfoContext(ctx, "Server started", slog.String("host", config.API.Host), slog.Int("port", config.API.Port))
 
 	// Wait for the SIGINT or SIGTERM signal to shutdown the server.
