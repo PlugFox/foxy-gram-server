@@ -2,10 +2,12 @@ package server
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
 	"runtime"
+	"runtime/debug"
 	"strings"
 	"time"
 
@@ -20,31 +22,45 @@ import (
 type Server struct {
 	router *chi.Mux
 	public chi.Router
+	admin  chi.Router
 	server *http.Server
 }
 
 func New(config *config.Config, logger *slog.Logger) *Server { // Router for HTTP API and Websocket centrifuge protocol.
+	middleware.DefaultLogger = middleware.RequestLogger(&middleware.DefaultLogFormatter{Logger: log.NewLogAdapter(logger)})
 	router := chi.NewRouter()
+	/* router.Use(middleware.Recoverer) */
+	router.Use(middlewareErrorRecoverer(logger))
+	router.Use(middleware.Logger)
+	router.Use(middleware.RequestID)
+	router.Use(middleware.RealIP)
+	router.Use(middleware.URLFormat)
 
-	// Public API group
 	// fs := http.FileServer(http.Dir("./")) // File server
-	public := router.Group(func(r chi.Router) {
-		// Middleware
-		r.Use(middleware.RequestID)
-		r.Use(middleware.RealIP)
-		/* r.Use(middleware.Logger) */
-		/* r.Use(logger_mw.New(log)) */
-		r.Use(middleware.Recoverer)
-		r.Use(middleware.URLFormat)
-		r.Use(middleware.NoCache)
-		/* router.Use(middleware.Heartbeat("/ping"))
+	/*
 		r.Use(middleware.StripSlashes)
 		r.Use(middleware.Compress(5))
 		r.Use(middleware.RedirectSlashes)
 		r.Use(middleware.RequestLogger(&middleware.DefaultLogFormatter{Logger: log}))
 		r.Use(middleware.Throttle(100))
-		r.Use(middleware.Timeout(cfg.Server.Timeout * time.Second)) */
-		/* r.Handle("/*", fs) */
+		r.Use(middleware.Timeout(cfg.Server.Timeout * time.Second))
+		r.Handle("/*", fs)
+	*/
+
+	// Public API group
+	public := router.Group(func(r chi.Router) {
+		// Middleware
+		r.Use(middleware.NoCache)
+		r.Use(middleware.Timeout(config.API.Timeout))
+		r.Use(middleware.Heartbeat("/ping"))
+	})
+
+	// Admin API group
+	admin := router.Group(func(r chi.Router) {
+		r.Use(middleware.NoCache)
+		r.Use(middleware.Timeout(config.API.Timeout))
+		r.Use(middleware.Heartbeat("/ping"))
+		r.Use(middlewareAuthorization(config.Secret))
 	})
 
 	// Create a new HTTP server
@@ -60,6 +76,7 @@ func New(config *config.Config, logger *slog.Logger) *Server { // Router for HTT
 	return &Server{
 		router: router,
 		public: public,
+		admin:  admin,
 		server: server,
 	}
 }
@@ -81,19 +98,20 @@ func (srv *Server) AddHealthCheck(statusFunc func() (bool, map[string]string)) {
 
 		runtime.ReadMemStats(&memStats)
 
-		rsp.SetData(map[string]any{
+		data := map[string]any{
 			"status": status,
 			"uptime": time.Since(startedAt).String(),
 			// Allocated memory / Reserved program memory
 			"memory":     fmt.Sprintf("%v Mb / %v Mb", memStats.Alloc/bytesInMb, memStats.Sys/bytesInMb),
 			"cpu":        runtime.NumCPU(),
 			"goroutines": runtime.NumGoroutine(),
-		})
+		}
 
 		if ok {
+			rsp.SetData(data)
 			rsp.Ok(w)
 		} else {
-			rsp.SetError("status_error", "One or more services are not healthy")
+			rsp.SetError("status_error", "One or more services are not healthy", data)
 			rsp.InternalServerError(w)
 		}
 	})
@@ -154,25 +172,82 @@ func (srv *Server) Close() error {
 	return srv.server.Close()
 }
 
-// middleware is a middleware function that adds CORS headers to the response before passing it to the next handler.
-/* func middleware(next http.Handler, logger *slog.Logger) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+// middlewareAuthorization is a middleware function that checks the Authorization header for a Bearer token.
+func middlewareAuthorization(secret string) func(next http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			authHeader := r.Header.Get("Authorization")
 
-		method := r.Method
-		url := r.URL.String()
-		msg := fmt.Sprintf("[%s] %s", method, url)
-		logger.InfoContext(r.Context(), msg, slog.String("method", method), slog.String("url", url))
+			// Check if the Authorization header is missing
+			if authHeader == "" {
+				rsp := &api.Response{}
+				rsp.SetError("unauthorized", "Authorization header is required")
+				rsp.Unauthorized(w)
 
-		// Handle preflight requests
-		if method == "OPTIONS" {
-			w.WriteHeader(http.StatusOK)
+				return
+			}
 
-			return // Skip the next handler, as this is a preflight request.
-		}
+			// Check if the Authorization header is not a Bearer token
+			token := strings.TrimPrefix(authHeader, "Bearer ")
+			if token == authHeader { // If the Authorization header is not a Bearer token
+				rsp := &api.Response{}
+				rsp.SetError("unauthorized", "Bearer token is required")
+				rsp.Unauthorized(w)
 
-		next.ServeHTTP(w, r)
-	})
-} */
+				return
+			}
+
+			// Check if the Bearer token is invalid
+			if token != secret {
+				rsp := &api.Response{}
+				rsp.SetError("unauthorized", "Invalid Bearer token")
+				rsp.Unauthorized(w)
+
+				return
+			}
+
+			// Call the next handler
+			next.ServeHTTP(w, r)
+		})
+	}
+}
+
+// middlewareErrorRecoverer is a middleware function that recovers from panics and returns an error response.
+func middlewareErrorRecoverer(logger *slog.Logger) func(next http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			defer func() {
+				if err := recover(); err != nil {
+					if e, ok := err.(error); ok {
+						if errors.Is(e, http.ErrAbortHandler) {
+							// we don't recover http.ErrAbortHandler so the response
+							// to the client is aborted, this should not be logged
+							panic(err)
+						}
+					}
+
+					if r.Header.Get("Connection") == "Upgrade" {
+						return
+					}
+
+					// Log the error
+					logger.ErrorContext(context.Background(), "Recovered from panic", slog.String("error", fmt.Sprintf("%v", err)))
+
+					rsp := &api.Response{}
+
+					rsp.SetError("internal_server_error",
+						"Internal Server Error",
+						map[string]any{
+							"error": fmt.Sprintf("%v", err),
+							"stack": string(debug.Stack()),
+						},
+					)
+					rsp.InternalServerError(w)
+				}
+			}()
+
+			// Call the next handler
+			next.ServeHTTP(w, r)
+		})
+	}
+}

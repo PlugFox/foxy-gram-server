@@ -5,10 +5,16 @@ import (
 	"net/http"
 )
 
+const (
+	okStatus  = "ok"
+	errStatus = "error"
+)
+
 // Error is a generic error structure that is used to send error responses to the client.
 type Error struct {
-	Code    string `json:"code"`
-	Message string `json:"message"`
+	Code    string      `json:"code"`
+	Message string      `json:"message"`
+	Extra   interface{} `json:"extra,omitempty"`
 }
 
 // Response is a generic response structure that is used to send responses to the client.
@@ -25,14 +31,25 @@ func (e *Error) Error() string {
 
 // Set data to response
 func (rsp *Response) SetData(data interface{}) {
+	rsp.Status = okStatus
 	rsp.Data = data
 }
 
 // Set error to response
-func (rsp *Response) SetError(code string, message string) {
+func (rsp *Response) SetError(code string, message string, extra ...interface{}) {
+	rsp.Status = errStatus
+
+	var extraData interface{}
+	if len(extra) > 0 {
+		extraData = extra[0] // Берем первый переданный аргумент, если он есть
+	} else {
+		extraData = nil // Если аргумент не был передан, оставляем nil
+	}
+
 	rsp.Error = &Error{
 		Code:    code,
 		Message: message,
+		Extra:   extraData,
 	}
 }
 
@@ -40,7 +57,9 @@ func (rsp *Response) SetError(code string, message string) {
 func (rsp *Response) Ok(w http.ResponseWriter) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
+
 	rsp.Status = "ok"
+
 	_ = json.NewEncoder(w).Encode(rsp)
 }
 
@@ -48,13 +67,16 @@ func (rsp *Response) Ok(w http.ResponseWriter) {
 func (rsp *Response) BadRequest(w http.ResponseWriter) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusBadRequest)
-	rsp.Status = "error"
+
+	rsp.Status = errStatus
+
 	if rsp.Error == nil {
 		rsp.Error = &Error{
 			Code:    "bad_request",
 			Message: "Bad request",
 		}
 	}
+
 	_ = json.NewEncoder(w).Encode(rsp)
 }
 
@@ -62,13 +84,16 @@ func (rsp *Response) BadRequest(w http.ResponseWriter) {
 func (rsp *Response) InternalServerError(w http.ResponseWriter) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusInternalServerError)
-	rsp.Status = "error"
+
+	rsp.Status = errStatus
+
 	if rsp.Error == nil {
 		rsp.Error = &Error{
 			Code:    "internal_server_error",
 			Message: "Internal server error",
 		}
 	}
+
 	_ = json.NewEncoder(w).Encode(rsp)
 }
 
@@ -76,13 +101,16 @@ func (rsp *Response) InternalServerError(w http.ResponseWriter) {
 func (rsp *Response) NotFound(w http.ResponseWriter) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusNotFound)
-	rsp.Status = "error"
+
+	rsp.Status = errStatus
+
 	if rsp.Error == nil {
 		rsp.Error = &Error{
 			Code:    "not_found",
 			Message: "Not found",
 		}
 	}
+
 	_ = json.NewEncoder(w).Encode(rsp)
 }
 
@@ -90,13 +118,16 @@ func (rsp *Response) NotFound(w http.ResponseWriter) {
 func (rsp *Response) Unauthorized(w http.ResponseWriter) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusUnauthorized)
-	rsp.Status = "error"
+
+	rsp.Status = errStatus
+
 	if rsp.Error == nil {
 		rsp.Error = &Error{
 			Code:    "unauthorized",
 			Message: "Unauthorized",
 		}
 	}
+
 	_ = json.NewEncoder(w).Encode(rsp)
 }
 
@@ -104,13 +135,16 @@ func (rsp *Response) Unauthorized(w http.ResponseWriter) {
 func (rsp *Response) Forbidden(w http.ResponseWriter) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusForbidden)
-	rsp.Status = "error"
+
+	rsp.Status = errStatus
+
 	if rsp.Error == nil {
 		rsp.Error = &Error{
 			Code:    "forbidden",
 			Message: "Forbidden",
 		}
 	}
+
 	_ = json.NewEncoder(w).Encode(rsp)
 }
 
@@ -118,12 +152,15 @@ func (rsp *Response) Forbidden(w http.ResponseWriter) {
 func (rsp *Response) MethodNotAllowed(w http.ResponseWriter) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusMethodNotAllowed)
-	rsp.Status = "error"
+
+	rsp.Status = errStatus
+
 	if rsp.Error == nil {
 		rsp.Error = &Error{
 			Code:    "method_not_allowed",
 			Message: "Method not allowed",
 		}
 	}
+
 	_ = json.NewEncoder(w).Encode(rsp)
 }
