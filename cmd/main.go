@@ -167,7 +167,6 @@ func run(config *config.Config, logger *slog.Logger) error {
 			}
 		},
 	) // Add health check endpoint
-	server.AddEcho() // Add echo endpoint
 
 	// TODO: Setup Centrifuge server
 

@@ -52,6 +52,9 @@ func New(config *config.Config, logger *slog.Logger) *Server { // Router for HTT
 	public := router.Group(func(r chi.Router) {
 		// Middleware
 		r.Use(middleware.NoCache)
+
+		// Routes
+		r.HandleFunc("/echo", echoRoute)
 	})
 
 	// Admin API group
@@ -127,39 +130,37 @@ func (srv *Server) AddHealthCheck(statusFunc func() (bool, map[string]string)) {
 	})
 }
 
-// AddEcho adds an echo endpoint to the server.
-func (srv *Server) AddEcho() {
-	srv.public.HandleFunc("/echo", func(w http.ResponseWriter, r *http.Request) {
-		// Create a new response object
-		rsp := &api.Response{}
+// echo route for testing purposes
+func echoRoute(w http.ResponseWriter, r *http.Request) {
+	// Create a new response object
+	rsp := &api.Response{}
 
-		// Create a map to hold the request data
-		var data map[string]any
+	// Create a map to hold the request data
+	var data map[string]any
 
-		// Decode the request body into the data map
-		if r.ContentLength != 0 && strings.Contains(r.Header.Get("Content-Type"), "application/json") {
-			err := render.Decode(r, &data)
-			if err != nil {
-				rsp.SetError("bad_request", err.Error())
-				rsp.BadRequest(w)
+	// Decode the request body into the data map
+	if r.ContentLength != 0 && strings.Contains(r.Header.Get("Content-Type"), "application/json") {
+		err := render.Decode(r, &data)
+		if err != nil {
+			rsp.SetError("bad_request", err.Error())
+			rsp.BadRequest(w)
 
-				return
-			}
+			return
 		}
+	}
 
-		rsp.SetData(struct {
-			Remote  string         `json:"remote"`
-			Method  string         `json:"method"`
-			Headers http.Header    `json:"headers"`
-			Body    map[string]any `json:"body"`
-		}{
-			Remote:  r.RemoteAddr,
-			Method:  r.Method,
-			Headers: r.Header,
-			Body:    data,
-		})
-		rsp.Ok(w)
+	rsp.SetData(struct {
+		Remote  string         `json:"remote"`
+		Method  string         `json:"method"`
+		Headers http.Header    `json:"headers"`
+		Body    map[string]any `json:"body"`
+	}{
+		Remote:  r.RemoteAddr,
+		Method:  r.Method,
+		Headers: r.Header,
+		Body:    data,
 	})
+	rsp.Ok(w)
 }
 
 // Status returns the server status.
