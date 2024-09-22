@@ -121,11 +121,12 @@ func waitExitSignal(sigCh chan os.Signal, t *telegram.Telegram, s *server.Server
 }
 
 func run(config *config.Config, logger *slog.Logger) error {
-	startedAt := time.Now()
+	startedAt := time.Now() // Start time
 	ctx, cancel := context.WithCancel(context.Background())
 
 	defer cancel()
 
+	// Set the maxprocs environment variable in container runtimes.
 	_, err := maxprocs.Set(maxprocs.Logger(func(s string, i ...interface{}) {
 		logger.DebugContext(ctx, fmt.Sprintf(s, i...))
 	}))
