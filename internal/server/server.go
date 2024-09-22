@@ -110,6 +110,11 @@ func (srv *Server) AddEcho() {
 	})
 }
 
+// Status returns the server status.
+func (srv *Server) Status() (string, error) {
+	return "ok", nil
+}
+
 // ListenAndServe starts the server and listens for incoming requests.
 func (srv *Server) ListenAndServe() error {
 	return srv.server.ListenAndServe()

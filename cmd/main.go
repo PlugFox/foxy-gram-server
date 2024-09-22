@@ -163,10 +163,14 @@ func run(config *config.Config, logger *slog.Logger) error {
 	server.AddHealthCheck(
 		func() map[string]string {
 			dbStatus, _ := db.Status()
+			srvStatus, _ := server.Status()
+			tgStatus, _ := telegram.Status()
 
 			return map[string]string{
-				"db":     dbStatus,
-				"uptime": time.Since(startedAt).String(),
+				"database": dbStatus,
+				"server":   srvStatus,
+				"telegram": tgStatus,
+				"uptime":   time.Since(startedAt).String(),
 			}
 		},
 	) // Add health check endpoint

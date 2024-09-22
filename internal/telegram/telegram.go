@@ -114,6 +114,11 @@ func New(db *storage.Storage, httpClient *http.Client, config *config.Config, lo
 	}, nil
 }
 
+// Status returns the telegram bot status.
+func (t *Telegram) Status() (string, error) {
+	return "ok", nil
+}
+
 // Start the bot.
 func (t *Telegram) Start() {
 	t.bot.Start()
