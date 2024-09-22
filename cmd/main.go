@@ -123,6 +123,7 @@ func waitExitSignal(sigCh chan os.Signal, t *telegram.Telegram, s *server.Server
 func run(config *config.Config, logger *slog.Logger) error {
 	startedAt := time.Now()
 	ctx, cancel := context.WithCancel(context.Background())
+
 	defer cancel()
 
 	_, err := maxprocs.Set(maxprocs.Logger(func(s string, i ...interface{}) {
