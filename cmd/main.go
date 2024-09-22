@@ -43,20 +43,11 @@ func main() {
 		log.WithSource(),
 	)
 
+	// Run the server
 	if err := run(config, logger); err != nil {
 		logger.ErrorContext(context.Background(), "an error occurred", slog.String("error", err.Error()))
 		os.Exit(1)
 	}
-
-	/* // Create a channel to shutdown the server.
-	sigCh := make(chan os.Signal, 1)
-
-	// Close after 1 sec to let response go to client.
-	time.AfterFunc(time.Second, func() {
-		sigCh <- syscall.SIGTERM // Close server.
-	})
-
-	waitExitSignal(sigCh) */
 
 	os.Exit(0)
 }
