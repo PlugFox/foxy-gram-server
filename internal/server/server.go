@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"runtime"
 	"strings"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -67,10 +69,26 @@ func New(config *config.Config, logger *slog.Logger) *Server { // Router for HTT
 // The map keys will be used as the status names in the response.
 // The map values will be used as the status values in the response.
 func (srv *Server) AddHealthCheck(statusFunc func() (bool, map[string]string)) {
+	const bytesInMb = 1024 * 1024
+
+	startedAt := time.Now() // Start time
+
 	srv.public.HandleFunc("/health", func(w http.ResponseWriter, _ *http.Request) {
 		rsp := &api.Response{}
 		ok, status := statusFunc()
-		rsp.SetData(status)
+
+		var memStats runtime.MemStats
+
+		runtime.ReadMemStats(&memStats)
+
+		rsp.SetData(map[string]any{
+			"status": status,
+			"uptime": time.Since(startedAt).String(),
+			// Allocated memory / Reserved program memory
+			"memory":     fmt.Sprintf("%v Mb / %v Mb", memStats.Alloc/bytesInMb, memStats.Sys/bytesInMb),
+			"cpu":        runtime.NumCPU(),
+			"goroutines": runtime.NumGoroutine(),
+		})
 
 		if ok {
 			rsp.Ok(w)

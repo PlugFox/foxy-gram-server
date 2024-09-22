@@ -112,7 +112,6 @@ func waitExitSignal(sigCh chan os.Signal, t *telegram.Telegram, s *server.Server
 }
 
 func run(config *config.Config, logger *slog.Logger) error {
-	startedAt := time.Now() // Start time
 	ctx, cancel := context.WithCancel(context.Background())
 
 	defer cancel()
@@ -165,7 +164,6 @@ func run(config *config.Config, logger *slog.Logger) error {
 				"database": dbStatus,
 				"server":   srvStatus,
 				"telegram": tgStatus,
-				"uptime":   time.Since(startedAt).String(),
 			}
 		},
 	) // Add health check endpoint
