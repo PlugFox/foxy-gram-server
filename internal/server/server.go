@@ -35,32 +35,42 @@ func New(config *config.Config, logger *slog.Logger) *Server { // Router for HTT
 	router.Use(middleware.RequestID)
 	router.Use(middleware.RealIP)
 	router.Use(middleware.URLFormat)
+	router.Use(middleware.StripSlashes)
+	router.Use(middleware.RedirectSlashes)
+	router.Use(middleware.Timeout(config.API.Timeout))
+	router.Use(middleware.Heartbeat("/ping"))
 
-	// fs := http.FileServer(http.Dir("./")) // File server
 	/*
 		r.Use(middleware.StripSlashes)
 		r.Use(middleware.Compress(5))
 		r.Use(middleware.RedirectSlashes)
 		r.Use(middleware.RequestLogger(&middleware.DefaultLogFormatter{Logger: log}))
 		r.Use(middleware.Throttle(100))
-		r.Use(middleware.Timeout(cfg.Server.Timeout * time.Second))
-		r.Handle("/*", fs)
 	*/
 
 	// Public API group
 	public := router.Group(func(r chi.Router) {
 		// Middleware
 		r.Use(middleware.NoCache)
-		r.Use(middleware.Timeout(config.API.Timeout))
-		r.Use(middleware.Heartbeat("/ping"))
 	})
 
 	// Admin API group
+	const compressionLevel = 5
+
+	fs := http.FileServer(http.Dir("./")) // File server
+
 	admin := router.Group(func(r chi.Router) {
-		r.Use(middleware.NoCache)
-		r.Use(middleware.Timeout(config.API.Timeout))
-		r.Use(middleware.Heartbeat("/ping"))
+		// Middleware
 		r.Use(middlewareAuthorization(config.Secret))
+
+		// File server
+		r.Route("/admin", func(r chi.Router) {
+			r.Route("/files", func(r chi.Router) {
+				r.Use(middleware.NoCache)
+				r.Use(middleware.Compress(compressionLevel))
+				r.Handle("/*", http.StripPrefix("/admin/files", fs))
+			})
+		})
 	})
 
 	// Create a new HTTP server
