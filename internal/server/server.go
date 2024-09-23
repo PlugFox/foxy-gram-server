@@ -54,6 +54,7 @@ func New(config *config.Config, logger *slog.Logger) *Server { // Router for HTT
 
 		// Routes
 		r.HandleFunc("/echo", echoRoute)
+		r.HandleFunc("/echo/*", echoRoute)
 	})
 
 	// Admin API group
@@ -102,7 +103,7 @@ func (srv *Server) AddHealthCheck(statusFunc func() (bool, map[string]string)) {
 
 	startedAt := time.Now() // Start time
 
-	srv.public.HandleFunc("/health", func(w http.ResponseWriter, _ *http.Request) {
+	handler := func(w http.ResponseWriter, _ *http.Request) {
 		ok, status := statusFunc()
 
 		var memStats runtime.MemStats
@@ -123,7 +124,14 @@ func (srv *Server) AddHealthCheck(statusFunc func() (bool, map[string]string)) {
 		} else {
 			api.NewResponse().SetError("status_error", "One or more services are not healthy", data).InternalServerError(w)
 		}
-	})
+	}
+
+	srv.public.Get("/health", handler)
+	srv.public.Get("/status", handler)
+	srv.public.Get("/healthz", handler)
+	srv.public.Get("/statusz", handler)
+	srv.public.Get("/metrics", handler)
+	srv.public.Get("/info", handler)
 }
 
 // Status returns the server status.
