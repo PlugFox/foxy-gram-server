@@ -109,6 +109,8 @@ func New(db *storage.Storage, httpClient *http.Client, config *config.Config, lo
 		return nil
 	})
 
+	// TODO: handle captcha methods, get information about captcha directly from the database
+
 	return &Telegram{
 		bot: bot,
 	}, nil

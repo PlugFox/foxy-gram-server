@@ -10,9 +10,6 @@ import (
 
 // echo route for testing purposes
 func echoRoute(w http.ResponseWriter, r *http.Request) {
-	// Create a new response object
-	rsp := &api.Response{}
-
 	// Create a map to hold the request data
 	var data map[string]any
 
@@ -20,14 +17,13 @@ func echoRoute(w http.ResponseWriter, r *http.Request) {
 	if r.ContentLength != 0 && strings.Contains(r.Header.Get("Content-Type"), "application/json") {
 		err := render.Decode(r, &data)
 		if err != nil {
-			rsp.SetError("bad_request", err.Error())
-			rsp.BadRequest(w)
+			api.NewResponse().SetError("bad_request", err.Error()).BadRequest(w)
 
 			return
 		}
 	}
 
-	rsp.SetData(struct {
+	api.NewResponse().SetData(struct {
 		Remote  string         `json:"remote"`
 		Method  string         `json:"method"`
 		Headers http.Header    `json:"headers"`
@@ -37,6 +33,5 @@ func echoRoute(w http.ResponseWriter, r *http.Request) {
 		Method:  r.Method,
 		Headers: r.Header,
 		Body:    data,
-	})
-	rsp.Ok(w)
+	}).Ok(w)
 }

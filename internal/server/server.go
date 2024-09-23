@@ -103,7 +103,6 @@ func (srv *Server) AddHealthCheck(statusFunc func() (bool, map[string]string)) {
 	startedAt := time.Now() // Start time
 
 	srv.public.HandleFunc("/health", func(w http.ResponseWriter, _ *http.Request) {
-		rsp := &api.Response{}
 		ok, status := statusFunc()
 
 		var memStats runtime.MemStats
@@ -120,11 +119,9 @@ func (srv *Server) AddHealthCheck(statusFunc func() (bool, map[string]string)) {
 		}
 
 		if ok {
-			rsp.SetData(data)
-			rsp.Ok(w)
+			api.NewResponse().SetData(data).Ok(w)
 		} else {
-			rsp.SetError("status_error", "One or more services are not healthy", data)
-			rsp.InternalServerError(w)
+			api.NewResponse().SetError("status_error", "One or more services are not healthy", data).InternalServerError(w)
 		}
 	})
 }
@@ -157,9 +154,7 @@ func middlewareAuthorization(secret string) func(next http.Handler) http.Handler
 
 			// Check if the Authorization header is missing
 			if authHeader == "" {
-				rsp := &api.Response{}
-				rsp.SetError("unauthorized", "Authorization header is required")
-				rsp.Unauthorized(w)
+				api.NewResponse().SetError("unauthorized", "Authorization header is required").Unauthorized(w)
 
 				return
 			}
@@ -167,18 +162,14 @@ func middlewareAuthorization(secret string) func(next http.Handler) http.Handler
 			// Check if the Authorization header is not a Bearer token
 			token := strings.TrimPrefix(authHeader, "Bearer ")
 			if token == authHeader { // If the Authorization header is not a Bearer token
-				rsp := &api.Response{}
-				rsp.SetError("unauthorized", "Bearer token is required")
-				rsp.Unauthorized(w)
+				api.NewResponse().SetError("unauthorized", "Bearer token is required").Unauthorized(w)
 
 				return
 			}
 
 			// Check if the Bearer token is invalid
 			if token != secret {
-				rsp := &api.Response{}
-				rsp.SetError("unauthorized", "Invalid Bearer token")
-				rsp.Unauthorized(w)
+				api.NewResponse().SetError("unauthorized", "Invalid Bearer token").Unauthorized(w)
 
 				return
 			}
@@ -210,16 +201,13 @@ func middlewareErrorRecoverer(logger *slog.Logger) func(next http.Handler) http.
 					// Log the error
 					logger.ErrorContext(context.Background(), "Recovered from panic", slog.String("error", fmt.Sprintf("%v", err)))
 
-					rsp := &api.Response{}
-
-					rsp.SetError("internal_server_error",
+					api.NewResponse().SetError("internal_server_error",
 						"Internal Server Error",
 						map[string]any{
 							"error": fmt.Sprintf("%v", err),
 							"stack": string(debug.Stack()),
 						},
-					)
-					rsp.InternalServerError(w)
+					).InternalServerError(w)
 				}
 			}()
 

@@ -24,20 +24,31 @@ type Response struct {
 	Error  *Error      `json:"error,omitempty"`
 }
 
+// NewResponse creates a new response object.
+func NewResponse() *Response {
+	return &Response{
+		Status: okStatus,
+	}
+}
+
 // Error message
 func (e *Error) Error() string {
 	return e.Message
 }
 
 // Set data to response
-func (rsp *Response) SetData(data interface{}) {
+func (rsp *Response) SetData(data interface{}) *Response {
 	rsp.Status = okStatus
+	rsp.Error = nil
 	rsp.Data = data
+
+	return rsp
 }
 
 // Set error to response
-func (rsp *Response) SetError(code string, message string, extra ...interface{}) {
+func (rsp *Response) SetError(code string, message string, extra ...interface{}) *Response {
 	rsp.Status = errStatus
+	rsp.Data = nil
 
 	var extraData interface{}
 	if len(extra) > 0 {
@@ -51,6 +62,8 @@ func (rsp *Response) SetError(code string, message string, extra ...interface{})
 		Message: message,
 		Extra:   extraData,
 	}
+
+	return rsp
 }
 
 // Send success response to client
