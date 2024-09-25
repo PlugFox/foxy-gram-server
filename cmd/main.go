@@ -14,6 +14,8 @@ import (
 	"time"
 
 	config "github.com/plugfox/foxy-gram-server/internal/config"
+	"github.com/plugfox/foxy-gram-server/internal/err"
+	"github.com/plugfox/foxy-gram-server/internal/global"
 	"github.com/plugfox/foxy-gram-server/internal/httpclient"
 	log "github.com/plugfox/foxy-gram-server/internal/log"
 	"github.com/plugfox/foxy-gram-server/internal/model"
@@ -43,8 +45,11 @@ func main() {
 		log.WithSource(),
 	)
 
+	global.Config = config
+	global.Logger = logger
+
 	// Run the server
-	if err := run(config, logger); err != nil {
+	if err := run(); err != nil {
 		logger.ErrorContext(context.Background(), "an error occurred", slog.String("error", err.Error()))
 		os.Exit(1)
 	}
@@ -111,14 +116,21 @@ func waitExitSignal(sigCh chan os.Signal, t *telegram.Telegram, s *server.Server
 	wg.Wait()
 }
 
-func run(config *config.Config, logger *slog.Logger) error {
+// Starts the server and waits for the SIGINT or SIGTERM signal to shutdown the server.
+//
+//nolint:funlen
+func run() error {
+	if global.Config == nil || global.Logger == nil {
+		return err.ErrorGlobalVariablesNotInitialized
+	}
+
 	ctx, cancel := context.WithCancel(context.Background())
 
 	defer cancel()
 
 	// Set the maxprocs environment variable in container runtimes.
 	_, err := maxprocs.Set(maxprocs.Logger(func(s string, i ...interface{}) {
-		logger.DebugContext(ctx, fmt.Sprintf(s, i...))
+		global.Logger.DebugContext(ctx, fmt.Sprintf(s, i...))
 	}))
 	if err != nil {
 		return fmt.Errorf("setting max procs: %w", err)
@@ -128,19 +140,19 @@ func run(config *config.Config, logger *slog.Logger) error {
 	model.InitHashFunction()
 
 	// Setup database connection
-	db, err := storage.New(config, logger)
+	db, err := storage.New()
 	if err != nil {
 		return fmt.Errorf("database connection error: %w", err)
 	}
 
 	// Create a http client
-	httpClient, err := httpclient.NewHTTPClient(&config.Proxy)
+	httpClient, err := httpclient.NewHTTPClient(&global.Config.Proxy)
 	if err != nil {
 		return fmt.Errorf("database connection error: %w", err)
 	}
 
 	// Setup Telegram bot
-	telegram, err := telegram.New(db, httpClient, config, logger)
+	telegram, err := telegram.New(db, httpClient)
 	if err != nil {
 		return fmt.Errorf("telegram bot setup error: %w", err)
 	}
@@ -151,7 +163,7 @@ func run(config *config.Config, logger *slog.Logger) error {
 	}
 
 	// Setup API server
-	server := server.New(config, logger)
+	server := server.New()
 	server.AddHealthCheck(
 		func() (bool, map[string]string) {
 			dbStatus, dbErr := db.Status()
@@ -191,13 +203,18 @@ func run(config *config.Config, logger *slog.Logger) error {
 	// Start the server
 	go func() {
 		if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			logger.ErrorContext(ctx, "Server error", slog.String("error", err.Error()))
+			global.Logger.ErrorContext(ctx, "Server error", slog.String("error", err.Error()))
 			os.Exit(1) // Exit the program if the server fails to start.
 		}
 	}()
 
 	// Log the server start
-	logger.InfoContext(ctx, "Server started", slog.String("host", config.API.Host), slog.Int("port", config.API.Port))
+	global.Logger.InfoContext(
+		ctx,
+		"Server started",
+		slog.String("host", global.Config.API.Host),
+		slog.Int("port", global.Config.API.Port),
+	)
 
 	// Wait for the SIGINT or SIGTERM signal to shutdown the server.
 	waitExitSignal(sigCh, telegram, server)

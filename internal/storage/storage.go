@@ -11,11 +11,10 @@ import (
 	"encoding/gob"
 	"errors"
 	"fmt"
-	"log/slog"
 	"time"
 
 	"github.com/dgraph-io/ristretto"
-	config "github.com/plugfox/foxy-gram-server/internal/config"
+	"github.com/plugfox/foxy-gram-server/internal/global"
 	"github.com/plugfox/foxy-gram-server/internal/model"
 	storage_logger "github.com/plugfox/foxy-gram-server/internal/storage/storagelogger"
 	"gorm.io/gorm"
@@ -31,7 +30,7 @@ type Storage struct {
 	db    *gorm.DB
 }
 
-func New(config *config.Config, log *slog.Logger) (*Storage, error) {
+func New() (*Storage, error) {
 	// Cache
 	const (
 		numCounters = 1e7     // number of keys to track frequency of (10M).
@@ -63,14 +62,14 @@ func New(config *config.Config, log *slog.Logger) (*Storage, error) {
 	}
 
 	// SQL database connection
-	dialector, err := createDialector(&config.Database)
+	dialector, err := createDialector(&global.Config.Database)
 	if err != nil {
 		return nil, err
 	}
 
 	// Log SQL queries if enabled
-	dbLogger := storage_logger.NewGormSlogLogger(log)
-	if config.Database.Logging {
+	dbLogger := storage_logger.NewGormSlogLogger(global.Logger)
+	if global.Config.Database.Logging {
 		dbLogger.LogMode(logger.Info)
 	} else {
 		dbLogger.LogMode(logger.Silent)

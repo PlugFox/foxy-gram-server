@@ -14,7 +14,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/plugfox/foxy-gram-server/api"
-	"github.com/plugfox/foxy-gram-server/internal/config"
+	"github.com/plugfox/foxy-gram-server/internal/global"
 	"github.com/plugfox/foxy-gram-server/internal/log"
 )
 
@@ -25,18 +25,18 @@ type Server struct {
 	server *http.Server
 }
 
-func New(config *config.Config, logger *slog.Logger) *Server { // Router for HTTP API and Websocket centrifuge protocol.
-	middleware.DefaultLogger = middleware.RequestLogger(&middleware.DefaultLogFormatter{Logger: log.NewLogAdapter(logger)})
+func New() *Server { // Router for HTTP API and Websocket centrifuge protocol.
+	middleware.DefaultLogger = middleware.RequestLogger(&middleware.DefaultLogFormatter{Logger: log.NewLogAdapter(global.Logger)})
 	router := chi.NewRouter()
 	/* router.Use(middleware.Recoverer) */
-	router.Use(middlewareErrorRecoverer(logger))
+	router.Use(middlewareErrorRecoverer(global.Logger))
 	router.Use(middleware.Logger)
 	router.Use(middleware.RequestID)
 	router.Use(middleware.RealIP)
 	router.Use(middleware.URLFormat)
 	router.Use(middleware.StripSlashes)
 	router.Use(middleware.RedirectSlashes)
-	router.Use(middleware.Timeout(config.API.Timeout))
+	router.Use(middleware.Timeout(global.Config.API.Timeout))
 	router.Use(middleware.Heartbeat("/ping"))
 
 	/*
@@ -64,7 +64,7 @@ func New(config *config.Config, logger *slog.Logger) *Server { // Router for HTT
 
 	admin := router.Group(func(r chi.Router) {
 		// Middleware
-		r.Use(middlewareAuthorization(config.Secret))
+		r.Use(middlewareAuthorization(global.Config.Secret))
 
 		// File server
 		r.Route("/admin", func(r chi.Router) {
@@ -78,12 +78,12 @@ func New(config *config.Config, logger *slog.Logger) *Server { // Router for HTT
 
 	// Create a new HTTP server
 	server := &http.Server{
-		Addr:         fmt.Sprintf("%s:%d", config.API.Host, config.API.Port),
+		Addr:         fmt.Sprintf("%s:%d", global.Config.API.Host, global.Config.API.Port),
 		Handler:      router,
-		WriteTimeout: config.API.WriteTimeout,
-		ReadTimeout:  config.API.ReadTimeout,
-		IdleTimeout:  config.API.IdleTimeout,
-		ErrorLog:     log.NewLogAdapter(logger),
+		WriteTimeout: global.Config.API.WriteTimeout,
+		ReadTimeout:  global.Config.API.ReadTimeout,
+		IdleTimeout:  global.Config.API.IdleTimeout,
+		ErrorLog:     log.NewLogAdapter(global.Logger),
 	}
 
 	return &Server{
