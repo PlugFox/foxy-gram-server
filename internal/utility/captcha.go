@@ -29,4 +29,4 @@ func (c *Captcha) Refresh(writer io.Writer) error {
 
 	return nil
 }
- */
+*/
