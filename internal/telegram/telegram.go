@@ -169,7 +169,7 @@ func New(db *storage.Storage, httpClient *http.Client) (*Telegram, error) {
 				File:    tele.FromReader(buffer),
 				Width:   captcha.Width,
 				Height:  captcha.Height,
-				Caption: captcha.Caption(user.Username),
+				Caption: captcha.Caption(user.Username, user.FirstName, user.LastName),
 			}
 
 			// Edit the existing message with the new photo
@@ -269,13 +269,15 @@ func New(db *storage.Storage, httpClient *http.Client) (*Telegram, error) {
 		}
 
 		if editCaption {
-			if err := c.EditCaption(captcha.Caption(user.Username), &tele.SendOptions{
-				ReplyMarkup: &tele.ReplyMarkup{
-					ForceReply:     false,
-					Selective:      user.Username != "",
-					InlineKeyboard: captchaKeyboardDefault().keyboard,
-				},
-			}); err != nil {
+			if err := c.EditCaption(
+				captcha.Caption(user.Username, user.FirstName, user.LastName),
+				&tele.SendOptions{
+					ReplyMarkup: &tele.ReplyMarkup{
+						ForceReply:     false,
+						Selective:      user.Username != "",
+						InlineKeyboard: captchaKeyboardDefault().keyboard,
+					},
+				}); err != nil {
 				return err
 			}
 		}

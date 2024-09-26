@@ -69,10 +69,13 @@ func (obj *Captcha) Validate() bool {
 }
 
 // Caption - returns the caption for the captcha.
-func (obj *Captcha) Caption(username string) string {
+func (obj *Captcha) Caption(username string, firstName string, lastName string) string {
 	var caption string
 	if username != "" {
 		caption = fmt.Sprintf("@%s, please solve the captcha.", username)
+	} else if firstName != "" || lastName != "" {
+		name := strings.TrimSpace(fmt.Sprintf("%s %s", firstName, lastName))
+		caption = fmt.Sprintf("%s, please solve the captcha.", name)
 	} else {
 		caption = "Please solve the captcha."
 	}

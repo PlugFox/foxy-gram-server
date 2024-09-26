@@ -333,12 +333,12 @@ func verifyUserWithCaptcha(
 
 			// Send the captcha message
 			bot := c.Bot()
-
+			sender := c.Sender()
 			photo := tele.Photo{
 				File:    tele.FromReader(buffer),
 				Width:   captcha.Width,
 				Height:  captcha.Height,
-				Caption: captcha.Caption(c.Sender().Username),
+				Caption: captcha.Caption(sender.Username, sender.FirstName, sender.LastName),
 			}
 			reply, err := photo.Send(bot, c.Chat(), &tele.SendOptions{
 				ReplyMarkup: &tele.ReplyMarkup{
