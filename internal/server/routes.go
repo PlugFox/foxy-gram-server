@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"github.com/go-chi/render"
-	"github.com/plugfox/foxy-gram-server/api"
 )
 
 // echo route for testing purposes
@@ -18,20 +17,20 @@ func echoRoute(w http.ResponseWriter, r *http.Request) {
 	if r.ContentLength != 0 {
 		if strings.Contains(r.Header.Get("Content-Type"), "application/json") {
 			if err := render.Decode(r, &data); err != nil {
-				api.NewResponse().SetError("bad_request", err.Error()).BadRequest(w)
+				NewResponse().SetError("bad_request", err.Error()).BadRequest(w)
 
 				return
 			}
 		} else {
 			msg := fmt.Sprintf("Content-Type: %s", r.Header.Get("Content-Type"))
 
-			api.NewResponse().SetError("bad_request", "Content-Type must be application/json", msg).BadRequest(w)
+			NewResponse().SetError("bad_request", "Content-Type must be application/json", msg).BadRequest(w)
 
 			return
 		}
 	}
 
-	api.NewResponse().SetData(struct {
+	NewResponse().SetData(struct {
 		URL     string         `json:"url"`
 		Remote  string         `json:"remote"`
 		Method  string         `json:"method"`

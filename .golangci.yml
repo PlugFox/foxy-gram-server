@@ -26,8 +26,8 @@ linters:
     - gosec # Inspects source code for security problems
     - gochecknoglobals # A global variable is a variable declared in package scope and that can be read and written to by any function within the package.
     - gochecknoinits # A global variable is a variable declared in package scope and that can be read and written to by any function within the package.
-    - nlreturn # Finds naked returns in functions greater than a specified function length
-    - wsl # Tool for detection of leading and trailing whitespace
+    #- nlreturn # Finds naked returns in functions greater than a specified function length
+    #- wsl # Tool for detection of leading and trailing whitespace
     - intrange # Detects constant integer expressions that can be simplified to a constant value
     - gocognit # Computes and checks the cognitive complexity of functions
     - cyclop # Go linter that checks if the cyclic complexity of a function is acceptable

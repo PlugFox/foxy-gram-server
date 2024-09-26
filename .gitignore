@@ -183,3 +183,6 @@ config.yml
 *.sqlite
 *.sqlite3
 *.db
+
+# Linter
+lint-reports

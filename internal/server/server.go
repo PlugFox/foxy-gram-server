@@ -14,7 +14,6 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
-	"github.com/plugfox/foxy-gram-server/api"
 	"github.com/plugfox/foxy-gram-server/internal/global"
 	"github.com/plugfox/foxy-gram-server/internal/log"
 	"github.com/plugfox/foxy-gram-server/internal/storage"
@@ -122,9 +121,9 @@ func (srv *Server) AddHealthCheck(statusFunc func() (bool, map[string]string)) {
 		}
 
 		if ok {
-			api.NewResponse().SetData(data).Ok(w)
+			NewResponse().SetData(data).Ok(w)
 		} else {
-			api.NewResponse().SetError("status_error", "One or more services are not healthy", data).InternalServerError(w)
+			NewResponse().SetError("status_error", "One or more services are not healthy", data).InternalServerError(w)
 		}
 	}
 
@@ -144,18 +143,18 @@ func (srv *Server) AddVerifyUsers(db *storage.Storage) {
 		}
 
 		if err := json.NewDecoder(r.Body).Decode(&requestBody); err != nil {
-			api.NewResponse().SetError("bad_request", err.Error()).BadRequest(w)
+			NewResponse().SetError("bad_request", err.Error()).BadRequest(w)
 		} else if (requestBody.IDs == nil) || (len(requestBody.IDs) == 0) {
-			api.NewResponse().SetError("bad_request", "IDs are required").BadRequest(w)
+			NewResponse().SetError("bad_request", "IDs are required").BadRequest(w)
 		} else {
 			if requestBody.Reason == "" {
 				requestBody.Reason = "Verified from API"
 			}
 
 			if err := db.VerifyUsers(requestBody.Reason, requestBody.IDs); err != nil {
-				api.NewResponse().SetError("internal_server_error", err.Error()).InternalServerError(w)
+				NewResponse().SetError("internal_server_error", err.Error()).InternalServerError(w)
 			} else {
-				api.NewResponse().Ok(w)
+				NewResponse().Ok(w)
 			}
 		}
 	}
@@ -201,7 +200,7 @@ func middlewareAuthorization(secret string) func(next http.Handler) http.Handler
 
 			// Check if the Authorization header is missing
 			if authHeader == "" {
-				api.NewResponse().SetError("unauthorized", "Authorization header is required").Unauthorized(w)
+				NewResponse().SetError("unauthorized", "Authorization header is required").Unauthorized(w)
 
 				return
 			}
@@ -209,14 +208,14 @@ func middlewareAuthorization(secret string) func(next http.Handler) http.Handler
 			// Check if the Authorization header is not a Bearer token
 			token := strings.TrimPrefix(authHeader, "Bearer ")
 			if token == authHeader { // If the Authorization header is not a Bearer token
-				api.NewResponse().SetError("unauthorized", "Bearer token is required").Unauthorized(w)
+				NewResponse().SetError("unauthorized", "Bearer token is required").Unauthorized(w)
 
 				return
 			}
 
 			// Check if the Bearer token is invalid
 			if token != secret {
-				api.NewResponse().SetError("unauthorized", "Invalid Bearer token").Unauthorized(w)
+				NewResponse().SetError("unauthorized", "Invalid Bearer token").Unauthorized(w)
 
 				return
 			}
@@ -248,7 +247,7 @@ func middlewareErrorRecoverer(logger *slog.Logger) func(next http.Handler) http.
 					// Log the error
 					logger.ErrorContext(context.Background(), "Recovered from panic", slog.String("error", fmt.Sprintf("%v", err)))
 
-					api.NewResponse().SetError("internal_server_error",
+					NewResponse().SetError("internal_server_error",
 						"Internal Server Error",
 						map[string]any{
 							"error": fmt.Sprintf("%v", err),
