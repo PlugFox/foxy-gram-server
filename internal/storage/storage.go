@@ -11,11 +11,10 @@ import (
 	"encoding/gob"
 	"errors"
 	"fmt"
-	"log/slog"
 	"time"
 
 	"github.com/dgraph-io/ristretto"
-	config "github.com/plugfox/foxy-gram-server/internal/config"
+	"github.com/plugfox/foxy-gram-server/internal/global"
 	"github.com/plugfox/foxy-gram-server/internal/model"
 	storage_logger "github.com/plugfox/foxy-gram-server/internal/storage/storagelogger"
 	"gorm.io/gorm"
@@ -31,7 +30,7 @@ type Storage struct {
 	db    *gorm.DB
 }
 
-func New(config *config.Config, log *slog.Logger) (*Storage, error) {
+func New() (*Storage, error) {
 	// Cache
 	const (
 		numCounters = 1e7     // number of keys to track frequency of (10M).
@@ -63,14 +62,14 @@ func New(config *config.Config, log *slog.Logger) (*Storage, error) {
 	}
 
 	// SQL database connection
-	dialector, err := createDialector(&config.Database)
+	dialector, err := createDialector(&global.Config.Database)
 	if err != nil {
 		return nil, err
 	}
 
 	// Log SQL queries if enabled
-	dbLogger := storage_logger.NewGormSlogLogger(log)
-	if config.Database.Logging {
+	dbLogger := storage_logger.NewGormSlogLogger(global.Logger)
+	if global.Config.Database.Logging {
 		dbLogger.LogMode(logger.Info)
 	} else {
 		dbLogger.LogMode(logger.Silent)
@@ -115,6 +114,18 @@ func New(config *config.Config, log *slog.Logger) (*Storage, error) {
 		cache: cache,
 		db:    db,
 	}, nil
+}
+
+// Status - get the status of the database connection.
+func (s *Storage) Status() (string, error) {
+	var result int
+	if err := s.db.Raw("SELECT 1").Scan(&result).Error; err != nil {
+		return "error", err
+	}
+
+	s.cache.Get("status") // Just to show that the cache is working
+
+	return "ok", nil
 }
 
 // Close - close the database connection.
@@ -475,6 +486,40 @@ func (s *Storage) VerifyUser(verifiedUser *model.VerifiedUser) error {
 	}); err != nil {
 		s.cacheDel(fmt.Sprintf("_verified#%s", userID))
 
+		return err
+	}
+
+	return nil
+}
+
+// VerifyUsers - verify the multiple users.
+func (s *Storage) VerifyUsers(reason string, userIDs []int) error {
+	if err := s.db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Delete(&model.BannedUser{}, "id IN ?", userIDs).Error; err != nil {
+			return err
+		}
+
+		users := make([]model.VerifiedUser, 0, len(userIDs))
+		for _, userID := range userIDs {
+			users = append(users, model.VerifiedUser{
+				ID:         model.UserID(userID),
+				VerifiedAt: time.Now(),
+				Reason:     reason,
+			})
+		}
+
+		const batchSize = 1000
+
+		if err := tx.Clauses(clause.OnConflict{
+			/* UpdateAll: true, */
+			Columns:   []clause.Column{{Name: "id"}},
+			DoUpdates: clause.AssignmentColumns([]string{"verified_at", "reason"}),
+		}).CreateInBatches(users, batchSize).Error; err != nil {
+			return err
+		}
+
+		return nil
+	}); err != nil {
 		return err
 	}
 

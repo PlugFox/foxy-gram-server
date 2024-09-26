@@ -6,8 +6,8 @@ import (
 	"log/slog"
 	"net/http"
 
-	config "github.com/plugfox/foxy-gram-server/internal/config"
 	"github.com/plugfox/foxy-gram-server/internal/converters"
+	"github.com/plugfox/foxy-gram-server/internal/global"
 	log "github.com/plugfox/foxy-gram-server/internal/log"
 	"github.com/plugfox/foxy-gram-server/internal/model"
 	"github.com/plugfox/foxy-gram-server/internal/storage"
@@ -21,15 +21,15 @@ type Telegram struct {
 	bot *tele.Bot
 }
 
-func New(db *storage.Storage, httpClient *http.Client, config *config.Config, logger *slog.Logger) (*Telegram, error) {
+func New(db *storage.Storage, httpClient *http.Client) (*Telegram, error) {
 	pref := tele.Settings{
-		Token:  config.Telegram.Token,
+		Token:  global.Config.Telegram.Token,
 		Client: httpClient,
 		Poller: &tele.LongPoller{
-			Timeout: config.Telegram.Timeout,
+			Timeout: global.Config.Telegram.Timeout,
 		},
 		OnError: func(err error, _ tele.Context) {
-			logger.Error("telegram error", slog.String("error", err.Error()))
+			global.Logger.Error("telegram error", slog.String("error", err.Error()))
 		},
 	}
 
@@ -41,27 +41,27 @@ func New(db *storage.Storage, httpClient *http.Client, config *config.Config, lo
 	// Global-scoped middleware:
 	bot.Use(mw.Recover())
 	bot.Use(mw.AutoRespond())
-	bot.Use(mw.Logger(log.NewLogAdapter(logger)))
+	bot.Use(mw.Logger(log.NewLogAdapter(global.Logger)))
 
-	if config.Telegram.IgnoreVia {
+	if global.Config.Telegram.IgnoreVia {
 		bot.Use(mw.IgnoreVia())
 	}
 
-	bot.Use(verifyUserMiddleware(db, httpClient, config, func(err error) {
-		logger.Error("verify user error", slog.String("error", err.Error()))
+	bot.Use(verifyUserMiddleware(db, httpClient, func(err error) {
+		global.Logger.Error("verify user error", slog.String("error", err.Error()))
 	}))
 
-	if len(config.Telegram.Whitelist) > 0 {
-		bot.Use(mw.Whitelist(config.Telegram.Whitelist...))
+	if len(global.Config.Telegram.Whitelist) > 0 {
+		bot.Use(mw.Whitelist(global.Config.Telegram.Whitelist...))
 	}
 
-	if len(config.Telegram.Blacklist) > 0 {
-		bot.Use(mw.Blacklist(config.Telegram.Blacklist...))
+	if len(global.Config.Telegram.Blacklist) > 0 {
+		bot.Use(mw.Blacklist(global.Config.Telegram.Blacklist...))
 	}
 
 	// Store messages in the database
 	bot.Use(storeMessagesMiddleware(db, func(err error) {
-		logger.Error("store message error", slog.String("error", err.Error()))
+		global.Logger.Error("store message error", slog.String("error", err.Error()))
 	}))
 
 	/* bot.Use(mw.Restrict(mw.RestrictConfig{
@@ -79,11 +79,11 @@ func New(db *storage.Storage, httpClient *http.Client, config *config.Config, lo
 	}) */
 
 	// Group-scoped middleware:
-	if len(config.Telegram.Admins) > 0 {
+	if len(global.Config.Telegram.Admins) > 0 {
 		adminOnly := bot.Group()
 		/* adminOnly.Handle("/ban", onBan)
 		adminOnly.Handle("/kick", onKick) */
-		adminOnly.Use(middleware.Whitelist(config.Telegram.Admins...))
+		adminOnly.Use(middleware.Whitelist(global.Config.Telegram.Admins...))
 	}
 
 	// TODO: add more handlers
@@ -109,9 +109,16 @@ func New(db *storage.Storage, httpClient *http.Client, config *config.Config, lo
 		return nil
 	})
 
+	// TODO: handle captcha methods, get information about captcha directly from the database
+
 	return &Telegram{
 		bot: bot,
 	}, nil
+}
+
+// Status returns the telegram bot status.
+func (t *Telegram) Status() (string, error) {
+	return "ok", nil
 }
 
 // Start the bot.

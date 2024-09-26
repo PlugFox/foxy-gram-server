@@ -8,8 +8,8 @@ import (
 	"net/http"
 	"time"
 
-	config "github.com/plugfox/foxy-gram-server/internal/config"
 	"github.com/plugfox/foxy-gram-server/internal/converters"
+	"github.com/plugfox/foxy-gram-server/internal/global"
 	"github.com/plugfox/foxy-gram-server/internal/model"
 	"github.com/plugfox/foxy-gram-server/internal/storage"
 	"github.com/plugfox/foxy-gram-server/internal/utility"
@@ -27,14 +27,14 @@ type captchaMessage struct {
 }
 
 // Check if the chat is allowed.
-func allowedChats(config *config.Config, chatID int64) bool {
-	for _, id := range config.Telegram.Chats {
+func allowedChats(chatID int64) bool {
+	for _, id := range global.Config.Telegram.Chats {
 		if id == chatID {
 			return true
 		}
 	}
 
-	return len(config.Telegram.Chats) == 0
+	return len(global.Config.Telegram.Chats) == 0
 }
 
 // Restrict user rights
@@ -123,7 +123,6 @@ func isUserBanned(db *storage.Storage, httpClient *http.Client, user *tele.User)
 func verifyUserMiddleware(
 	db *storage.Storage,
 	httpClient *http.Client,
-	config *config.Config,
 	onError func(error),
 ) tele.MiddlewareFunc {
 	// Centralized error handling
@@ -148,7 +147,7 @@ func verifyUserMiddleware(
 			}
 
 			// If it not allowed chat - skip it
-			if !allowedChats(config, chat.ID) {
+			if !allowedChats(chat.ID) {
 				return nil // Skip the current message, if it is not allowed chat
 			}
 

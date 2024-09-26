@@ -2,16 +2,24 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	logByDefault "log"
 	"log/slog"
+	"net/http"
 	"os"
+	"os/signal"
+	"sync"
+	"syscall"
 	"time"
 
 	config "github.com/plugfox/foxy-gram-server/internal/config"
+	"github.com/plugfox/foxy-gram-server/internal/err"
+	"github.com/plugfox/foxy-gram-server/internal/global"
 	"github.com/plugfox/foxy-gram-server/internal/httpclient"
 	log "github.com/plugfox/foxy-gram-server/internal/log"
 	"github.com/plugfox/foxy-gram-server/internal/model"
+	"github.com/plugfox/foxy-gram-server/internal/server"
 	storage "github.com/plugfox/foxy-gram-server/internal/storage"
 	"github.com/plugfox/foxy-gram-server/internal/telegram"
 
@@ -37,7 +45,11 @@ func main() {
 		log.WithSource(),
 	)
 
-	if err := run(config, logger); err != nil {
+	global.Config = config
+	global.Logger = logger
+
+	// Run the server
+	if err := run(); err != nil {
 		logger.ErrorContext(context.Background(), "an error occurred", slog.String("error", err.Error()))
 		os.Exit(1)
 	}
@@ -45,11 +57,78 @@ func main() {
 	os.Exit(0)
 }
 
-func run(config *config.Config, logger *slog.Logger) error {
-	ctx := context.Background()
+// waitExitSignal waits for the SIGINT or SIGTERM signal to shutdown the centrifuge node.
+// It creates a channel to receive signals and a channel to indicate when the shutdown is complete.
+// Then it notifies the channel for SIGINT and SIGTERM signals and starts a goroutine to wait for the signal.
+// Once the signal is received, it shuts down the centrifuge node and indicates that the shutdown is complete.
+func waitExitSignal(sigCh chan os.Signal, t *telegram.Telegram, s *server.Server /* n *centrifuge.Node */) {
+	wg := sync.WaitGroup{}
 
+	// Notify the channel for SIGINT and SIGTERM signals.
+	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
+
+	const timeout = 10 * time.Second
+
+	// Start a goroutine to wait for the signal and handle graceful shutdown.
+	wg.Add(1)
+
+	go func() {
+		defer wg.Done()
+
+		// Wait for the signal.
+		<-sigCh
+
+		ctx, cancel := context.WithTimeout(context.Background(), timeout)
+
+		defer cancel()
+
+		// _ = n.Shutdown(ctx)
+
+		_ = s.Shutdown(ctx)
+	}()
+
+	// Handle Telegram bot shutdown.
+	wg.Add(1)
+
+	go func() {
+		defer wg.Done()
+
+		// Wait for the signal.
+		<-sigCh
+
+		// Create a channel to indicate when the shutdown is complete.
+		done := make(chan struct{})
+
+		// Stop the Telegram bot
+		go func() {
+			defer close(done)
+			t.Stop()
+		}()
+
+		// Ensure the shutdown happens within 10 seconds.
+		select {
+		case <-done: // Done
+		case <-time.After(timeout): // Timeout
+		}
+	}()
+
+	// Wait for both goroutines to complete before exiting.
+	wg.Wait()
+}
+
+// Starts the server and waits for the SIGINT or SIGTERM signal to shutdown the server.
+func run() error {
+	if global.Config == nil || global.Logger == nil {
+		return err.ErrorGlobalVariablesNotInitialized
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+
+	defer cancel()
+
+	// Set the maxprocs environment variable in container runtimes.
 	_, err := maxprocs.Set(maxprocs.Logger(func(s string, i ...interface{}) {
-		logger.DebugContext(ctx, fmt.Sprintf(s, i...))
+		global.Logger.DebugContext(ctx, fmt.Sprintf(s, i...))
 	}))
 	if err != nil {
 		return fmt.Errorf("setting max procs: %w", err)
@@ -59,36 +138,114 @@ func run(config *config.Config, logger *slog.Logger) error {
 	model.InitHashFunction()
 
 	// Setup database connection
-	db, err := storage.New(config, logger)
-	if err != nil {
-		return fmt.Errorf("database connection error: %w", err)
-	}
+	db := initStorage()
 
 	// Create a http client
-	httpClient, err := httpclient.NewHTTPClient(&config.Proxy)
-	if err != nil {
-		return fmt.Errorf("database connection error: %w", err)
-	}
+	httpClient := initHTTPClient()
 
 	// Setup Telegram bot
-	telegram, err := telegram.New(db, httpClient, config, logger)
-	if err != nil {
-		return fmt.Errorf("telegram bot setup error: %w", err)
-	}
+	telegram := initTelegram(db, httpClient)
 
+	// Update the bot user information
 	if err := db.UpsertUser(telegram.Me().Seen()); err != nil {
 		return fmt.Errorf("upserting user error: %w", err)
 	}
 
-	// TODO: Setup API server
+	// Setup API server
+	server := initServer()
+	server.AddHealthCheck(
+		func() (bool, map[string]string) {
+			dbStatus, dbErr := db.Status()
+			srvStatus, srvErr := server.Status()
+			tgStatus, tgErr := telegram.Status()
+
+			isHealthy := dbErr == nil && srvErr == nil && tgErr == nil
+
+			return isHealthy, map[string]string{
+				"database": dbStatus,
+				"server":   srvStatus,
+				"telegram": tgStatus,
+			}
+		},
+	) // Add health check endpoint
+	server.AddVerifyUsers(db) // Add verify users endpoint [POST] /admin/verify
 
 	// TODO: Setup Centrifuge server
 
 	// TODO: Setup InfluxDB metrics (if any)
 
-	telegram.Start()
+	// Create a channel to shutdown the server.
+	sigCh := make(chan os.Signal, 1)
 
-	logger.InfoContext(ctx, "Server started", slog.String("host", config.API.Host), slog.Int("port", config.API.Port))
+	// Create a function to stop the server.
+	// Call this function when the server needs to be closed.
+	/* stop := func(sigCh chan os.Signal) func() {
+		return func() {
+			sigCh <- syscall.SIGTERM // Close server.
+		}
+	} */
+
+	// Log the server start
+	global.Logger.InfoContext(
+		ctx,
+		"Server started",
+		slog.String("host", global.Config.API.Host),
+		slog.Int("port", global.Config.API.Port),
+	)
+
+	// Wait for the SIGINT or SIGTERM signal to shutdown the server.
+	waitExitSignal(sigCh, telegram, server)
+	close(sigCh)
 
 	return nil
+}
+
+// initStorage initializes the database connection.
+func initStorage() *storage.Storage {
+	db, err := storage.New()
+	if err != nil {
+		panic(fmt.Sprintf("database connection error: %v", err))
+	}
+
+	return db
+}
+
+// Create a new HTTP client
+func initHTTPClient() *http.Client {
+	httpClient, err := httpclient.NewHTTPClient(&global.Config.Proxy)
+	if err != nil {
+		panic(fmt.Sprintf("http client error: %v", err))
+	}
+
+	return httpClient
+}
+
+// Initialize the Telegram bot
+func initTelegram(db *storage.Storage, httpClient *http.Client) *telegram.Telegram {
+	tg, err := telegram.New(db, httpClient)
+	if err != nil {
+		panic(fmt.Sprintf("telegram bot setup error: %v", err))
+	}
+
+	// Start the Telegram bot polling
+	go func() {
+		tg.Start()
+	}()
+
+	return tg
+}
+
+// Initialize the API server
+func initServer() *server.Server {
+	srv := server.New()
+
+	// Start the server
+	go func() {
+		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			global.Logger.Error("Server error", slog.String("error", err.Error()))
+			os.Exit(1) // Exit the program if the server fails to start.
+		}
+	}()
+
+	return srv
 }

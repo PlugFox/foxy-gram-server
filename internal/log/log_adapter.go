@@ -18,3 +18,9 @@ func (a *logAdapter) Write(p []byte) (n int, err error) {
 
 	return len(p), nil
 }
+
+func (a *logAdapter) Print(p []byte) (n int, err error) {
+	a.slog.Info(string(p))
+
+	return len(p), nil
+}
