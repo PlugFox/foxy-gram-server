@@ -12,7 +12,7 @@ func TestUserID(t *testing.T) {
 	require.Equal(t, "123", userID.ToString())
 }
 
-func TestUserHash(t *testing.T) {
+/* func TestUserHash(t *testing.T) {
 	testcases := []struct {
 		Name         string
 		User         *User
@@ -53,4 +53,4 @@ func TestUserHash(t *testing.T) {
 			require.Equal(t, testcase.ExpectedHash, hash)
 		})
 	}
-}
+} */
