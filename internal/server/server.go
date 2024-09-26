@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -16,6 +17,7 @@ import (
 	"github.com/plugfox/foxy-gram-server/api"
 	"github.com/plugfox/foxy-gram-server/internal/global"
 	"github.com/plugfox/foxy-gram-server/internal/log"
+	"github.com/plugfox/foxy-gram-server/internal/storage"
 )
 
 type Server struct {
@@ -132,6 +134,42 @@ func (srv *Server) AddHealthCheck(statusFunc func() (bool, map[string]string)) {
 	srv.public.Get("/statusz", handler)
 	srv.public.Get("/metrics", handler)
 	srv.public.Get("/info", handler)
+}
+
+func (srv *Server) AddVerifyUsers(db *storage.Storage) {
+	handler := func(w http.ResponseWriter, r *http.Request) {
+		var requestBody struct {
+			IDs    []int  `json:"ids"`
+			Reason string `json:"reason,omitempty"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&requestBody); err != nil {
+			api.NewResponse().SetError("bad_request", err.Error()).BadRequest(w)
+		} else if (requestBody.IDs == nil) || (len(requestBody.IDs) == 0) {
+			api.NewResponse().SetError("bad_request", "IDs are required").BadRequest(w)
+		} else {
+			if requestBody.Reason == "" {
+				requestBody.Reason = "Verified from API"
+			}
+			err := db.VerifyUsers(requestBody.Reason, requestBody.IDs)
+			if err != nil {
+				api.NewResponse().SetError("internal_server_error", err.Error()).InternalServerError(w)
+			} else {
+				api.NewResponse().Ok(w)
+			}
+		}
+	}
+
+	srv.admin.Post("/admin/verify", handler)
+}
+
+// AddPublicRoute adds a public route to the server.
+func (srv *Server) AddPublicRoute(method string, path string, handler http.HandlerFunc) {
+	srv.public.Method(method, path, handler)
+}
+
+// AddAdminRoute adds an admin route to the server.
+func (srv *Server) AddAdminRoute(method string, path string, handler http.HandlerFunc) {
+	srv.admin.Method(method, path, handler)
 }
 
 // Status returns the server status.

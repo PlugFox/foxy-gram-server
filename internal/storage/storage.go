@@ -492,6 +492,40 @@ func (s *Storage) VerifyUser(verifiedUser *model.VerifiedUser) error {
 	return nil
 }
 
+// VerifyUsers - verify the multiple users.
+func (s *Storage) VerifyUsers(reason string, userIDs []int) error {
+	if err := s.db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Delete(&model.BannedUser{}, "id IN ?", userIDs).Error; err != nil {
+			return err
+		}
+
+		users := make([]model.VerifiedUser, 0, len(userIDs))
+		for _, userID := range userIDs {
+			users = append(users, model.VerifiedUser{
+				ID:         model.UserID(userID),
+				VerifiedAt: time.Now(),
+				Reason:     reason,
+			})
+		}
+
+		const batchSize = 1000
+
+		if err := tx.Clauses(clause.OnConflict{
+			/* UpdateAll: true, */
+			Columns:   []clause.Column{{Name: "id"}},
+			DoUpdates: clause.AssignmentColumns([]string{"verified_at", "reason"}),
+		}).CreateInBatches(users, batchSize).Error; err != nil {
+			return err
+		}
+
+		return nil
+	}); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // Ban the user.
 func (s *Storage) BanUser(bannedUser *model.BannedUser) error {
 	if err := s.db.Transaction(func(tx *gorm.DB) error {

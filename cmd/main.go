@@ -117,8 +117,6 @@ func waitExitSignal(sigCh chan os.Signal, t *telegram.Telegram, s *server.Server
 }
 
 // Starts the server and waits for the SIGINT or SIGTERM signal to shutdown the server.
-//
-//nolint:funlen
 func run() error {
 	if global.Config == nil || global.Logger == nil {
 		return err.ErrorGlobalVariablesNotInitialized
@@ -140,22 +138,13 @@ func run() error {
 	model.InitHashFunction()
 
 	// Setup database connection
-	db, err := storage.New()
-	if err != nil {
-		return fmt.Errorf("database connection error: %w", err)
-	}
+	db := initStorage()
 
 	// Create a http client
-	httpClient, err := httpclient.NewHTTPClient(&global.Config.Proxy)
-	if err != nil {
-		return fmt.Errorf("database connection error: %w", err)
-	}
+	httpClient := initHTTPClient()
 
 	// Setup Telegram bot
-	telegram, err := telegram.New(db, httpClient)
-	if err != nil {
-		return fmt.Errorf("telegram bot setup error: %w", err)
-	}
+	telegram := initTelegram(db, httpClient)
 
 	// Update the bot user information
 	if err := db.UpsertUser(telegram.Me().Seen()); err != nil {
@@ -163,7 +152,7 @@ func run() error {
 	}
 
 	// Setup API server
-	server := server.New()
+	server := initServer()
 	server.AddHealthCheck(
 		func() (bool, map[string]string) {
 			dbStatus, dbErr := db.Status()
@@ -179,6 +168,7 @@ func run() error {
 			}
 		},
 	) // Add health check endpoint
+	server.AddVerifyUsers(db) // Add verify users endpoint [POST] /admin/verify
 
 	// TODO: Setup Centrifuge server
 
@@ -195,19 +185,6 @@ func run() error {
 		}
 	} */
 
-	// Start the Telegram bot polling
-	go func() {
-		telegram.Start()
-	}()
-
-	// Start the server
-	go func() {
-		if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			global.Logger.ErrorContext(ctx, "Server error", slog.String("error", err.Error()))
-			os.Exit(1) // Exit the program if the server fails to start.
-		}
-	}()
-
 	// Log the server start
 	global.Logger.InfoContext(
 		ctx,
@@ -221,4 +198,54 @@ func run() error {
 	close(sigCh)
 
 	return nil
+}
+
+// initStorage initializes the database connection.
+func initStorage() *storage.Storage {
+	db, err := storage.New()
+	if err != nil {
+		panic(fmt.Sprintf("database connection error: %v", err))
+	}
+
+	return db
+}
+
+// Create a new HTTP client
+func initHTTPClient() *http.Client {
+	httpClient, err := httpclient.NewHTTPClient(&global.Config.Proxy)
+	if err != nil {
+		panic(fmt.Sprintf("http client error: %v", err))
+	}
+
+	return httpClient
+}
+
+// Initialize the Telegram bot
+func initTelegram(db *storage.Storage, httpClient *http.Client) *telegram.Telegram {
+	tg, err := telegram.New(db, httpClient)
+	if err != nil {
+		panic(fmt.Sprintf("telegram bot setup error: %v", err))
+	}
+
+	// Start the Telegram bot polling
+	go func() {
+		tg.Start()
+	}()
+
+	return tg
+}
+
+// Initialize the API server
+func initServer() *server.Server {
+	srv := server.New()
+
+	// Start the server
+	go func() {
+		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			global.Logger.Error("Server error", slog.String("error", err.Error()))
+			os.Exit(1) // Exit the program if the server fails to start.
+		}
+	}()
+
+	return srv
 }
