@@ -224,19 +224,26 @@ func New(db *storage.Storage, httpClient *http.Client) (*Telegram, error) {
 			// Do nothing
 		}
 
+		// Check if the captcha code is correct
 		if captcha.Validate() {
-			db.DeleteCaptchaByID(captcha.ID)
-
 			db.VerifyUser(&model.VerifiedUser{
 				ID:         model.UserID(captcha.UserID),
 				VerifiedAt: time.Now(),
 				Reason:     "Captcha was solved",
 			})
 
+			c.RespondText("You have been verified!")
+
 			c.Bot().Delete(c.Message())
 
-			c.RespondText("You have been verified!")
+			db.DeleteCaptchaByID(captcha.ID)
+
 			return nil
+		} else if len(captcha.Input) >= len(captcha.Digits) {
+			c.RespondText("Invalid captcha code. Please try again.")
+
+			captcha.Input = ""
+			editCaption = true
 		}
 
 		if err := db.UpsertCaptcha(captcha); err != nil {
