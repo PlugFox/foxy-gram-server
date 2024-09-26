@@ -167,7 +167,7 @@ func verifyUserMiddleware(
 			}
 
 			// Check if the chat is valid and if the sender is an admin or the chat is private
-			member, err := c.Bot().ChatMemberOf(chat, sender)
+			/* member, err := c.Bot().ChatMemberOf(chat, sender)
 			if err != nil {
 				handleError(err)
 
@@ -185,7 +185,7 @@ func verifyUserMiddleware(
 				c.Set(contextKeyShouldVerify, false) // Skip the verification, because the user is an admin
 
 				return next(c) // Admin or private chat - skip the verification
-			}
+			} */
 
 			c.Set(contextKeyShouldVerify, true) // Should verify the user
 
@@ -214,7 +214,7 @@ func verifyUserWithLocalDB(
 	return func(next tele.HandlerFunc) tele.HandlerFunc {
 		return func(c tele.Context) error {
 			if c.Get(contextKeyShouldVerify) != true {
-				return next(c) // Skip the verification for callbacks
+				return next(c) // Skip the verification for callbacks, if the user is already verified or an admin
 			}
 
 			banned, err := isUserLocalBanned(db, c.Sender())
@@ -259,7 +259,7 @@ func verifyUserWithCAS(
 	return func(next tele.HandlerFunc) tele.HandlerFunc {
 		return func(c tele.Context) error {
 			if c.Get(contextKeyShouldVerify) != true {
-				return next(c) // Skip the verification for callbacks
+				return next(c) // Skip the verification for callbacks, if the user is already verified or an admin
 			}
 
 			banned, err := isUserCASBanned(httpClient, c.Sender())
@@ -312,7 +312,7 @@ func verifyUserWithCaptcha(
 	return func(next tele.HandlerFunc) tele.HandlerFunc {
 		return func(c tele.Context) error {
 			if c.Get(contextKeyShouldVerify) != true {
-				return next(c) // Skip the verification for callbacks
+				return next(c) // Skip the verification for callbacks, if the user is already verified or an admin
 			}
 
 			captchas, err := db.GetCaptchasForUserID(c.Sender().ID, c.Chat().ID)
@@ -320,57 +320,45 @@ func verifyUserWithCaptcha(
 				handleError(err)
 			}
 			if len(captchas) > 0 {
-				return nil // User already has a captcha
+				return nil // User already has a captcha, skip the current message
 			}
 
 			// Create a new captcha
 			buffer := new(bytes.Buffer)
+			defer buffer.Reset()
 			captcha, err := model.GenerateCaptcha(buffer)
 			if err != nil {
 				handleError(err)
 
-				return nil // Skip the current message
+				return nil // Skip the current message, if the captcha is not generated
 			}
 
 			// Send the captcha message
 			bot := c.Bot()
-			reply, err := bot.Send(c.Chat(), tele.Photo{
+
+			photo := tele.Photo{
 				File:    tele.FromReader(buffer),
 				Width:   captcha.Width,
 				Height:  captcha.Height,
 				Caption: fmt.Sprintf("Please solve the captcha."),
-			}, tele.ReplyMarkup{
-				ForceReply: true,
-				/* Selective:  c.Sender().Username != "", */
-				InlineKeyboard: [][]tele.InlineButton{
-					{},
-					{},
-					{},
-					{},
-					{
-						tele.InlineButton{Text: "Refresh 🔄", Unique: "refresh_captcha"},
-						tele.InlineButton{Text: "Cancel ❌", Unique: "cancel_captcha"},
-					},
-				},
-			})
-			buffer.Reset()
+			}
+			reply, err := photo.Send(bot, c.Chat(), &tele.SendOptions{})
+			if err != nil {
+				handleError(err)
+
+				return nil // Skip the current message, if the captcha message is not sent
+			}
 
 			captcha.UserID = c.Sender().ID
 			captcha.ChatID = reply.Chat.ID
 			captcha.MessageID = int64(reply.ID)
 
-			db.UpsertCaptcha(captcha) // Upsert the captcha to the database
+			// Upsert the captcha to the database
+			if err := db.UpsertCaptcha(captcha); err != nil {
+				handleError(err)
+			}
 
-			return nil
-
-			/* type captchaMessage struct {
-				buffer  *bytes.Buffer
-				captcha *model.Captcha
-				photo   tele.Photo
-				reply   tele.ReplyMarkup
-			} */
-
-			// return next(c) // Continue the pipeline
+			return nil // Skip the next pipeline, because the user should solve the captcha
 		}
 	}
 }

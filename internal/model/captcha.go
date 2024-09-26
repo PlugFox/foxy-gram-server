@@ -66,7 +66,8 @@ func GenerateCaptcha(writer io.Writer) (*Captcha, error) {
 	randomDigits := captcha.RandomDigits(config.Length)
 
 	id := string(captcha.RandomDigits(idLength))
-	if _, err := captcha.NewImage(id, randomDigits, config.Width, config.Height).WriteTo(writer); err != nil {
+	image := captcha.NewImage(id, randomDigits, config.Width, config.Height)
+	if _, err := image.WriteTo(writer); err != nil {
 		return nil, err
 	}
 
