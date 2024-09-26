@@ -3,8 +3,10 @@
 package telegram
 
 import (
+	"bytes"
 	"log/slog"
 	"net/http"
+	"time"
 
 	"github.com/plugfox/foxy-gram-server/internal/converters"
 	"github.com/plugfox/foxy-gram-server/internal/global"
@@ -28,8 +30,8 @@ func New(db *storage.Storage, httpClient *http.Client) (*Telegram, error) {
 		Poller: &tele.LongPoller{
 			Timeout: global.Config.Telegram.Timeout,
 		},
-		OnError: func(err error, _ tele.Context) {
-			global.Logger.Error("telegram error", slog.String("error", err.Error()))
+		OnError: func(err error, ctx tele.Context) {
+			global.Logger.Error("telegram error", slog.String("error", err.Error()), slog.String("context", ctx.Text()))
 		},
 	}
 
@@ -121,7 +123,140 @@ func New(db *storage.Storage, httpClient *http.Client) (*Telegram, error) {
 		return nil
 	})
 
-	// TODO: handle captcha methods, get information about captcha directly from the database
+	// Handle the captcha keyboard
+	bot.Handle(&tele.Btn{Unique: captchaKeyboardUnique}, func(c tele.Context) error {
+		user := c.Sender() // Get the user who clicked the button
+		data := c.Data()   // Get the data from the button
+
+		// Get the current captcha for the user
+		captcha, err := db.GetCaptchaForUserID(user.ID)
+		if err != nil {
+			return err
+		} else if captcha == nil {
+			return nil
+		} else if captcha.Expired() {
+			db.DeleteCaptchaByID(captcha.ID)
+			bot.Delete(c.Message())
+
+			return nil
+		} else if captcha.MessageID != int64(c.Message().ID) {
+			return nil
+		}
+
+		captcha.Expiration = global.Config.Captcha.Expiration
+		editCaption := false
+
+		switch data {
+		case "captcha-refresh":
+			// Refresh the captcha
+			buffer := new(bytes.Buffer)
+
+			defer buffer.Reset()
+
+			captcha.Refresh(buffer)
+
+			// Create the photo message
+			photo := tele.Photo{
+				File:    tele.FromReader(buffer),
+				Width:   captcha.Width,
+				Height:  captcha.Height,
+				Caption: captcha.Caption(user.Username),
+			}
+
+			// Edit the existing message with the new photo
+			if err := c.Edit(&photo, &tele.SendOptions{
+				ReplyMarkup: &tele.ReplyMarkup{
+					ForceReply:     false,
+					Selective:      user.Username != "",
+					InlineKeyboard: captchaKeyboardDefault().keyboard,
+				},
+			}); err != nil {
+				return err
+			}
+
+		case "captcha-backspace":
+			// Backspace the last number in the captcha code
+			if len(captcha.Input) > 0 {
+				captcha.Input = captcha.Input[:len(captcha.Input)-1]
+				editCaption = true
+			}
+		case "captcha-zero":
+			// Add the number to the captcha code
+			captcha.Input += "0"
+			editCaption = true
+		case "captcha-one":
+			// Add the number to the captcha code
+			captcha.Input += "1"
+			editCaption = true
+		case "captcha-two":
+			// Add the number to the captcha code
+			captcha.Input += "2"
+			editCaption = true
+		case "captcha-three":
+			// Add the number to the captcha code
+			captcha.Input += "3"
+			editCaption = true
+		case "captcha-four":
+			// Add the number to the captcha code
+			captcha.Input += "4"
+			editCaption = true
+		case "captcha-five":
+			// Add the number to the captcha code
+			captcha.Input += "5"
+			editCaption = true
+		case "captcha-six":
+			// Add the number to the captcha code
+			captcha.Input += "6"
+			editCaption = true
+		case "captcha-seven":
+			// Add the number to the captcha code
+			captcha.Input += "7"
+			editCaption = true
+		case "captcha-eight":
+			// Add the number to the captcha code
+			captcha.Input += "8"
+			editCaption = true
+		case "captcha-nine":
+			// Add the number to the captcha code
+			captcha.Input += "9"
+			editCaption = true
+		default:
+			// Do nothing
+		}
+
+		if captcha.Validate() {
+			db.DeleteCaptchaByID(captcha.ID)
+
+			db.VerifyUser(&model.VerifiedUser{
+				ID:         model.UserID(captcha.UserID),
+				VerifiedAt: time.Now(),
+				Reason:     "Captcha was solved",
+			})
+
+			c.Bot().Delete(c.Message())
+
+			c.RespondText("You have been verified!")
+			return nil
+		}
+
+		if err := db.UpsertCaptcha(captcha); err != nil {
+			return err
+		}
+
+		if editCaption {
+			if err := c.EditCaption(captcha.Caption(user.Username), &tele.SendOptions{
+				ReplyMarkup: &tele.ReplyMarkup{
+					ForceReply:     false,
+					Selective:      user.Username != "",
+					InlineKeyboard: captchaKeyboardDefault().keyboard,
+				},
+			}); err != nil {
+				return err
+			}
+		}
+
+		return nil
+	})
 
 	return &Telegram{
 		bot: bot,

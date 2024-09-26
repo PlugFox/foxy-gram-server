@@ -315,18 +315,18 @@ func verifyUserWithCaptcha(
 				return next(c) // Skip the verification for callbacks, if the user is already verified or an admin
 			}
 
-			captchas, err := db.GetCaptchasForUserID(c.Sender().ID, c.Chat().ID)
+			captcha, err := db.GetCaptchaForUserID(c.Sender().ID)
 			if err != nil {
 				handleError(err)
 			}
-			if len(captchas) > 0 {
+			if captcha != nil && !captcha.Expired() {
 				return nil // User already has a captcha, skip the current message
 			}
 
 			// Create a new captcha
 			buffer := new(bytes.Buffer)
 			defer buffer.Reset()
-			captcha, err := model.GenerateCaptcha(buffer)
+			captcha, err = model.GenerateCaptcha(buffer)
 			if err != nil {
 				handleError(err)
 
@@ -340,9 +340,15 @@ func verifyUserWithCaptcha(
 				File:    tele.FromReader(buffer),
 				Width:   captcha.Width,
 				Height:  captcha.Height,
-				Caption: fmt.Sprintf("Please solve the captcha."),
+				Caption: captcha.Caption(c.Sender().Username),
 			}
-			reply, err := photo.Send(bot, c.Chat(), &tele.SendOptions{})
+			reply, err := photo.Send(bot, c.Chat(), &tele.SendOptions{
+				ReplyMarkup: &tele.ReplyMarkup{
+					ForceReply:     false,
+					Selective:      c.Sender().Username != "",
+					InlineKeyboard: captchaKeyboardDefault().keyboard,
+				},
+			})
 			if err != nil {
 				handleError(err)
 

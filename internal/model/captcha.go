@@ -1,6 +1,7 @@
 package model
 
 import (
+	"fmt"
 	"io"
 	"strconv"
 	"strings"
@@ -25,6 +26,8 @@ type Captcha struct {
 	MessageID int64 `gorm:"index" hash:"x" json:"message_id"` // Identifier for the message.
 
 	Digits string `hash:"x" json:"digits"` // Digits of the captcha.
+
+	Input string `hash:"x" json:"input"` // User input for the captcha.
 
 	Length int `hash:"x" json:"length"` // Length of the captcha.
 
@@ -60,6 +63,45 @@ func (obj *Captcha) Expired() bool {
 	return obj.ExpiresAt.Before(time.Now())
 }
 
+// Validate - checks if the captcha input is correct.
+func (obj *Captcha) Validate() bool {
+	return obj.Digits == obj.Input && !obj.Expired()
+}
+
+// Caption - returns the caption for the captcha.
+func (obj *Captcha) Caption(username string) string {
+	var caption string
+	if username != "" {
+		caption = fmt.Sprintf("@%s, please solve the captcha.", username)
+	} else {
+		caption = "Please solve the captcha."
+	}
+
+	if obj.Input != "" {
+		numbersEmojis := map[rune]string{
+			'0': "0️⃣",
+			'1': "1️⃣",
+			'2': "2️⃣",
+			'3': "3️⃣",
+			'4': "4️⃣",
+			'5': "5️⃣",
+			'6': "6️⃣",
+			'7': "7️⃣",
+			'8': "8️⃣",
+			'9': "9️⃣",
+		}
+
+		var strNumbers []string
+		for _, b := range obj.Input {
+			strNumbers = append(strNumbers, numbersEmojis[b])
+		}
+
+		caption += "\n\n" + strings.Join(strNumbers, " ")
+	}
+
+	return caption
+}
+
 // Generates a new captcha with the given configuration.
 func GenerateCaptcha(writer io.Writer) (*Captcha, error) {
 	config := global.Config.Captcha
@@ -86,4 +128,21 @@ func GenerateCaptcha(writer io.Writer) (*Captcha, error) {
 		Expiration: config.Expiration,
 		ExpiresAt:  time.Now().Add(config.Expiration),
 	}, nil
+}
+
+func (obj *Captcha) Refresh(writer io.Writer) error {
+	newCaptcha, err := GenerateCaptcha(writer)
+	if err != nil {
+		return err
+	}
+
+	obj.Digits = newCaptcha.Digits
+	obj.Length = newCaptcha.Length
+	obj.Width = newCaptcha.Width
+	obj.Height = newCaptcha.Height
+	obj.Expiration = newCaptcha.Expiration
+	obj.ExpiresAt = newCaptcha.ExpiresAt
+	obj.Input = ""
+
+	return nil
 }

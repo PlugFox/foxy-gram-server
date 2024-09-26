@@ -569,11 +569,15 @@ func (s *Storage) DeleteCaptchaByID(id int64) error {
 }
 
 // Get the captchas for the user.
-func (s *Storage) GetCaptchasForUserID(userID int64, chatID int64) ([]model.Captcha, error) {
-	var captchas []model.Captcha
-	if err := s.db.Where("user_id = ? AND chat_id = ? AND expires_at >= ?", userID, chatID, time.Now()).Find(&captchas).Error; err != nil {
-		return captchas, err
+func (s *Storage) GetCaptchaForUserID(userID int64) (*model.Captcha, error) {
+	captcha := &model.Captcha{}
+
+	query := s.db.Where("user_id = ? AND expires_at >= ?", userID, time.Now())
+	if err := query.First(captcha).Error; errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, nil
+	} else if err != nil {
+		return nil, err
 	}
 
-	return captchas, nil
+	return captcha, nil
 }

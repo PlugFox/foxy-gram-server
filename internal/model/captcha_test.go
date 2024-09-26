@@ -23,6 +23,7 @@ func TestCaptchaHash(t *testing.T) {
 			Captcha: &Captcha{
 				ID:         1,
 				Digits:     "123456",
+				Input:      "123456",
 				Length:     6,
 				Width:      200,
 				Height:     100,
@@ -33,14 +34,14 @@ func TestCaptchaHash(t *testing.T) {
 				ExpiresAt:  time.Time{},
 				UpdatedAt:  time.Time{},
 			},
-			ExpectedHash: "2942d3c0d40ba7395a56e03802cd5999372145f48b5863e87c2c0ef8e61f2b8e",
+			ExpectedHash: "66025f011be311b43ef54f423ccf39c1e96a1105004a382f394d6b79e95df4cc",
 		},
 		{
 			Name: "Captcha with missing fields",
 			Captcha: &Captcha{
 				ID: 1,
 			},
-			ExpectedHash: "0ecf4641150794b30a691cb480acb4561966e51ff4f865a77d141c9849f966ac",
+			ExpectedHash: "7bd1ebf0a92a85b609177346c8a3e87104ebb62bab3ade021e3ee5456b5403e0",
 		},
 	}
 
