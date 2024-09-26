@@ -246,6 +246,7 @@ func New(db *storage.Storage, httpClient *http.Client) (*Telegram, error) {
 			editCaption = true
 		}
 
+		captcha.Expiration = global.Config.Captcha.Expiration // Reset the expiration time
 		if err := db.UpsertCaptcha(captcha); err != nil {
 			return err
 		}
