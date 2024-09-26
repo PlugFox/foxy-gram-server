@@ -141,7 +141,9 @@ func New(db *storage.Storage, httpClient *http.Client) (*Telegram, error) {
 				return err
 			}
 
-			c.Delete() //nolint:errcheck
+			if err := c.Delete(); err != nil {
+				global.Logger.Error("telegram: deleting captcha message error", slog.String("error", err.Error()))
+			}
 
 			return nil
 		} else if captcha.MessageID != int64(c.Message().ID) {
@@ -231,22 +233,31 @@ func New(db *storage.Storage, httpClient *http.Client) (*Telegram, error) {
 
 		// Check if the captcha code is correct
 		if captcha.Validate() {
-			//nolint:errcheck
-			db.VerifyUser(&model.VerifiedUser{
+			if err := db.VerifyUser(&model.VerifiedUser{
 				ID:         model.UserID(captcha.UserID),
 				VerifiedAt: time.Now(),
 				Reason:     "Captcha was solved",
-			})
+			}); err != nil {
+				global.Logger.Warn("Failed to verify user at database", slog.String("error", err.Error()))
+			}
 
-			c.RespondText("You have been verified!") //nolint:errcheck
+			if err := c.RespondText("You have been verified!"); err != nil {
+				global.Logger.Warn("Failed to respond to the user", slog.String("error", err.Error()))
+			}
 
-			c.Bot().Delete(c.Message()) //nolint:errcheck
+			if err := c.Bot().Delete(c.Message()); err != nil {
+				global.Logger.Warn("Failed to delete the message", slog.String("error", err.Error()))
+			}
 
-			db.DeleteCaptchaByID(captcha.ID) //nolint:errcheck
+			if err := db.DeleteCaptchaByID(captcha.ID); err != nil {
+				global.Logger.Warn("Failed to delete the captcha", slog.String("error", err.Error()))
+			}
 
 			return nil
 		} else if len(captcha.Input) >= len(captcha.Digits) {
-			c.RespondText("Invalid captcha code. Please try again.") //nolint:errcheck
+			if err := c.RespondText("Invalid captcha code. Please try again."); err != nil {
+				global.Logger.Warn("Failed to respond to the user", slog.String("error", err.Error()))
+			}
 
 			captcha.Input = ""
 			editCaption = true
