@@ -47,8 +47,20 @@ func New(db *storage.Storage, httpClient *http.Client) (*Telegram, error) {
 		bot.Use(mw.IgnoreVia())
 	}
 
-	bot.Use(verifyUserMiddleware(db, httpClient, func(err error) {
+	bot.Use(verifyUserMiddleware(db, func(err error) {
 		global.Logger.Error("verify user error", slog.String("error", err.Error()))
+	}))
+
+	bot.Use(verifyUserWithLocalDB(db, func(err error) {
+		global.Logger.Error("verify user with local db error", slog.String("error", err.Error()))
+	}))
+
+	bot.Use(verifyUserWithCAS(db, httpClient, func(err error) {
+		global.Logger.Error("verify user with cas error", slog.String("error", err.Error()))
+	}))
+
+	bot.Use(verifyUserWithCaptcha(db, func(err error) {
+		global.Logger.Error("verify user with captcha error", slog.String("error", err.Error()))
 	}))
 
 	if len(global.Config.Telegram.Whitelist) > 0 {
@@ -129,6 +141,14 @@ func (t *Telegram) Start() {
 // Get the bot user.
 func (t *Telegram) Me() *model.User {
 	return converters.UserFromTG(t.bot.Me).Seen()
+}
+
+// DeleteMessage deletes the message with the given chat ID and message ID.
+func (t *Telegram) DeleteMessage(chatID int64, messageID int64) error {
+	return t.bot.Delete(&tele.Message{
+		ID:   int(messageID),
+		Chat: &tele.Chat{ID: chatID},
+	})
 }
 
 // Stop the bot.

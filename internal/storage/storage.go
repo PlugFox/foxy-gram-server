@@ -101,6 +101,7 @@ func New() (*Storage, error) {
 		&model.MessageOrigin{},
 		&model.Message{},
 		&model.ReplyMarkup{},
+		&model.Captcha{},
 	); err != nil {
 		return nil, err
 	}
@@ -545,4 +546,34 @@ func (s *Storage) BanUser(bannedUser *model.BannedUser) error {
 	}
 
 	return nil
+}
+
+// Get the outdated captchas.
+func (s *Storage) GetOutdatedCaptchas() []model.Captcha {
+	var captchas []model.Captcha
+	if err := s.db.Find(&captchas, "expires_at < ?", time.Now()).Error; err != nil {
+		return nil
+	}
+
+	return captchas
+}
+
+// Upsert captcha
+func (s *Storage) UpsertCaptcha(captcha *model.Captcha) error {
+	return s.db.Clauses(clause.OnConflict{UpdateAll: true}).Save(captcha).Error
+}
+
+// Delete captcha by ID.
+func (s *Storage) DeleteCaptchaByID(id int64) error {
+	return s.db.Delete(&model.Captcha{}, id).Error
+}
+
+// Get the captchas for the user.
+func (s *Storage) GetCaptchasForUserID(userID int64, chatID int64) ([]model.Captcha, error) {
+	var captchas []model.Captcha
+	if err := s.db.Where("user_id = ? AND chat_id = ? AND expires_at >= ?", userID, chatID, time.Now()).Find(&captchas).Error; err != nil {
+		return captchas, err
+	}
+
+	return captchas, nil
 }

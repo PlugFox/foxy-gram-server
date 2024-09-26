@@ -185,6 +185,22 @@ func run() error {
 		}
 	} */
 
+	// Track outdated captchas
+	go func() {
+		for {
+			select {
+			case <-time.After(global.Config.Captcha.Expiration):
+				captchas := db.GetOutdatedCaptchas()
+				for _, captcha := range captchas {
+					db.DeleteCaptchaByID(captcha.ID)
+					telegram.DeleteMessage(captcha.ChatID, captcha.MessageID)
+				}
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+
 	// Log the server start
 	global.Logger.InfoContext(
 		ctx,

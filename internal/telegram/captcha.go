@@ -1,16 +1,15 @@
 package telegram
 
-import (
+/* import (
 	"bytes"
 	"fmt"
 
 	config "github.com/plugfox/foxy-gram-server/internal/config"
-	"github.com/plugfox/foxy-gram-server/internal/utility"
+	"github.com/plugfox/foxy-gram-server/internal/model"
 	tele "gopkg.in/telebot.v3"
-)
+) */
 
-//nolint:unused
-func buildCaptchaMessage(conf config.CaptchaConfig, user tele.User) (*captchaMessage, error) {
+/* func buildCaptchaMessage(conf config.CaptchaConfig, user tele.User) (*captchaMessage, error) {
 	var caption string
 	if username := user.Username; username != "" {
 		caption = fmt.Sprintf("@%s, please solve the captcha.\nReply with the code in the image.", username)
@@ -22,7 +21,7 @@ func buildCaptchaMessage(conf config.CaptchaConfig, user tele.User) (*captchaMes
 
 	buffer := new(bytes.Buffer)
 
-	captcha, err := utility.GenerateCaptcha(conf, buffer)
+	captcha, err := model.GenerateCaptcha(conf, buffer)
 	if err != nil {
 		return nil, err
 	}
@@ -50,7 +49,7 @@ func buildCaptchaMessage(conf config.CaptchaConfig, user tele.User) (*captchaMes
 			},
 		},
 	}, nil
-}
+} */
 
 // todo: implement sendCaptchaMessage
 /* func sendCaptchaMessage(conf config.CaptchaConfig, bot *tele.Bot, chat *tele.Chat, user *tele.User) error {
