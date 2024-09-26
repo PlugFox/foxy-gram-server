@@ -165,7 +165,7 @@ func verifyUserMiddleware(
 			}
 
 			// Check if the chat is valid and if the sender is an admin or the chat is private
-			/* member, err := c.Bot().ChatMemberOf(chat, sender)
+			member, err := c.Bot().ChatMemberOf(chat, sender)
 			if err != nil {
 				handleError(err)
 
@@ -183,7 +183,7 @@ func verifyUserMiddleware(
 				c.Set(contextKeyShouldVerify, false) // Skip the verification, because the user is an admin
 
 				return next(c) // Admin or private chat - skip the verification
-			} */
+			}
 
 			c.Set(contextKeyShouldVerify, true) // Should verify the user
 
