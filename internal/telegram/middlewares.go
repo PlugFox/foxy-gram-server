@@ -118,8 +118,6 @@ func isUserCASBanned(httpClient *http.Client, user *tele.User) (bool, error) {
 }
 
 // Verify user middleware - verify the user with a captcha
-//
-//nolint:cyclop,gocognit
 func verifyUserMiddleware(
 	db *storage.Storage,
 	onError func(error),

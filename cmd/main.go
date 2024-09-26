@@ -117,6 +117,8 @@ func waitExitSignal(sigCh chan os.Signal, t *telegram.Telegram, s *server.Server
 }
 
 // Starts the server and waits for the SIGINT or SIGTERM signal to shutdown the server.
+//
+//nolint:funlen
 func run() error {
 	if global.Config == nil || global.Logger == nil {
 		return err.ErrorGlobalVariablesNotInitialized
@@ -189,7 +191,7 @@ func run() error {
 	go func() {
 		for {
 			select {
-			case <-time.After(global.Config.Captcha.Expiration / 10):
+			case <-time.After(global.Config.Captcha.Expiration / 10): //nolint:mnd
 				captchas := db.GetOutdatedCaptchas()
 				for _, captcha := range captchas {
 					if err := db.DeleteCaptchaByID(captcha.ID); err != nil {
@@ -200,6 +202,7 @@ func run() error {
 						global.Logger.ErrorContext(ctx, "telegram: deleting outdated captcha error", slog.String("error", err.Error()), slog.Int64("id", captcha.ID))
 						continue
 					}
+
 					global.Logger.InfoContext(ctx, "outdated captcha deleted", slog.Int64("id", captcha.ID))
 				}
 			case <-ctx.Done():

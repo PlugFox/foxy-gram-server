@@ -113,7 +113,7 @@ func GenerateCaptcha(writer io.Writer) (*Captcha, error) {
 		return nil, err
 	}
 
-	var strNumbers []string
+	strNumbers := make([]string, 0, len(randomDigits))
 	for _, b := range randomDigits {
 		strNumbers = append(strNumbers, strconv.Itoa(int(b)))
 	}

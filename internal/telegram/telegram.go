@@ -23,6 +23,7 @@ type Telegram struct {
 	bot *tele.Bot
 }
 
+//nolint:funlen,gocognit,gocyclo,cyclop
 func New(db *storage.Storage, httpClient *http.Client) (*Telegram, error) {
 	pref := tele.Settings{
 		Token:  global.Config.Telegram.Token,
@@ -130,13 +131,17 @@ func New(db *storage.Storage, httpClient *http.Client) (*Telegram, error) {
 
 		// Get the current captcha for the user
 		captcha, err := db.GetCaptchaForUserID(user.ID)
+		//nolint:gocritic
 		if err != nil {
 			return err
 		} else if captcha == nil {
 			return nil
 		} else if captcha.Expired() {
-			db.DeleteCaptchaByID(captcha.ID)
-			bot.Delete(c.Message())
+			if err := db.DeleteCaptchaByID(captcha.ID); err != nil {
+				return err
+			}
+
+			c.Delete() //nolint:errcheck
 
 			return nil
 		} else if captcha.MessageID != int64(c.Message().ID) {
@@ -153,7 +158,9 @@ func New(db *storage.Storage, httpClient *http.Client) (*Telegram, error) {
 
 			defer buffer.Reset()
 
-			captcha.Refresh(buffer)
+			if err := captcha.Refresh(buffer); err != nil {
+				return err
+			}
 
 			// Create the photo message
 			photo := tele.Photo{
@@ -220,27 +227,26 @@ func New(db *storage.Storage, httpClient *http.Client) (*Telegram, error) {
 			// Add the number to the captcha code
 			captcha.Input += "9"
 			editCaption = true
-		default:
-			// Do nothing
 		}
 
 		// Check if the captcha code is correct
 		if captcha.Validate() {
+			//nolint:errcheck
 			db.VerifyUser(&model.VerifiedUser{
 				ID:         model.UserID(captcha.UserID),
 				VerifiedAt: time.Now(),
 				Reason:     "Captcha was solved",
 			})
 
-			c.RespondText("You have been verified!")
+			c.RespondText("You have been verified!") //nolint:errcheck
 
-			c.Bot().Delete(c.Message())
+			c.Bot().Delete(c.Message()) //nolint:errcheck
 
-			db.DeleteCaptchaByID(captcha.ID)
+			db.DeleteCaptchaByID(captcha.ID) //nolint:errcheck
 
 			return nil
 		} else if len(captcha.Input) >= len(captcha.Digits) {
-			c.RespondText("Invalid captcha code. Please try again.")
+			c.RespondText("Invalid captcha code. Please try again.") //nolint:errcheck
 
 			captcha.Input = ""
 			editCaption = true

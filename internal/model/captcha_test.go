@@ -63,7 +63,7 @@ func TestCaptchaHash(t *testing.T) {
 func TestBytesToString(t *testing.T) {
 	bytes := []byte{1, 2, 3, 4, 5}
 
-	var strNumbers []string
+	strNumbers := make([]string, 0, len(bytes))
 	for _, b := range bytes {
 		strNumbers = append(strNumbers, strconv.Itoa(int(b)))
 	}
