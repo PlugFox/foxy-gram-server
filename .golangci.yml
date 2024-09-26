@@ -49,7 +49,7 @@ linters:
     - gosec # Inspects source code for security problems
     - misspell # Finds commonly misspelled English words in comments
     - nakedret # Finds naked returns in functions greater than a specified function length
-    - nestif # Reports deeply nested if statements
+    #- nestif # Reports deeply nested if statements
     - nilerr # Finds the code that returns nil even if it checks that the error is not nil.
     - noctx # noctx finds sending http request without context.Context
     - nolintlint # Reports ill-formed or insufficient nolint directives

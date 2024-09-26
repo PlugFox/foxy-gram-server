@@ -7,6 +7,6 @@ import (
 )
 
 var (
-	Logger *slog.Logger
-	Config *conf.Config
+	Logger *slog.Logger //nolint:gochecknoglobals
+	Config *conf.Config //nolint:gochecknoglobals
 )

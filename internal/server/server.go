@@ -142,6 +142,7 @@ func (srv *Server) AddVerifyUsers(db *storage.Storage) {
 			IDs    []int  `json:"ids"`
 			Reason string `json:"reason,omitempty"`
 		}
+
 		if err := json.NewDecoder(r.Body).Decode(&requestBody); err != nil {
 			api.NewResponse().SetError("bad_request", err.Error()).BadRequest(w)
 		} else if (requestBody.IDs == nil) || (len(requestBody.IDs) == 0) {
@@ -150,8 +151,8 @@ func (srv *Server) AddVerifyUsers(db *storage.Storage) {
 			if requestBody.Reason == "" {
 				requestBody.Reason = "Verified from API"
 			}
-			err := db.VerifyUsers(requestBody.Reason, requestBody.IDs)
-			if err != nil {
+
+			if err := db.VerifyUsers(requestBody.Reason, requestBody.IDs); err != nil {
 				api.NewResponse().SetError("internal_server_error", err.Error()).InternalServerError(w)
 			} else {
 				api.NewResponse().Ok(w)
