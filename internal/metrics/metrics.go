@@ -1,7 +1,6 @@
 package metrics
 
 import (
-	"fmt"
 	"strconv"
 	"time"
 
@@ -66,7 +65,7 @@ func (metrics *metricsImpl) LogEvent(eventName string, tags map[string]string, f
 	}
 
 	metrics.writeAPI.WritePoint(point)
-	fmt.Printf("Logged event: %s with tags %v and fields %v\n", eventName, tags, fields)
+	// fmt.Printf("Logged event: %s with tags %v and fields %v\n", eventName, tags, fields)
 }
 
 // Specific method for logging chat-related events
