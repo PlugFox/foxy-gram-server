@@ -111,14 +111,29 @@ func (srv *Server) AddHealthCheck(statusFunc func() (bool, map[string]string)) {
 
 		runtime.ReadMemStats(&memStats)
 
+		uptime := time.Since(startedAt)
+		allocatedMemory := memStats.Alloc / bytesInMb
+		reservedMemory := memStats.Sys / bytesInMb
+		cpu := runtime.NumCPU()
+		goroutines := runtime.NumGoroutine()
+
 		data := map[string]any{
 			"status": status,
-			"uptime": time.Since(startedAt).String(),
+			"uptime": uptime.String(),
 			// Allocated memory / Reserved program memory
-			"memory":     fmt.Sprintf("%v Mb / %v Mb", memStats.Alloc/bytesInMb, memStats.Sys/bytesInMb),
-			"cpu":        runtime.NumCPU(),
-			"goroutines": runtime.NumGoroutine(),
+			"memory":     fmt.Sprintf("%v Mb / %v Mb", allocatedMemory, reservedMemory),
+			"cpu":        cpu,
+			"goroutines": goroutines,
 		}
+
+		defer global.Metrics.LogEvent("health_check", nil, map[string]any{
+			"status":           ok,
+			"uptime":           uptime,
+			"allocated_memory": allocatedMemory,
+			"reserved_memory":  reservedMemory,
+			"cpu":              cpu,
+			"goroutines":       goroutines,
+		})
 
 		if ok {
 			NewResponse().SetData(data).Ok(w)
