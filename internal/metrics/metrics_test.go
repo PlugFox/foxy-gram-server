@@ -16,7 +16,7 @@ func TestCanPassNilTags(t *testing.T) {
 		}
 	}
 
-	t.Run("Empty tags and field", func(t *testing.T) {
+	t.Run("Empty tags and field", func(_ *testing.T) {
 		logEvent("test", nil, nil)
 	})
 }

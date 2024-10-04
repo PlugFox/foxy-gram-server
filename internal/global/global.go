@@ -9,7 +9,7 @@ import (
 )
 
 var (
-	Logger  *slog.Logger       //nolint:gochecknoglobals
-	Config  *conf.Config       //nolint:gochecknoglobals
-	Metrics metr.MetricsLogger //nolint:gochecknoglobals
+	Logger  *slog.Logger //nolint:gochecknoglobals
+	Config  *conf.Config //nolint:gochecknoglobals
+	Metrics metr.Metrics //nolint:gochecknoglobals
 )

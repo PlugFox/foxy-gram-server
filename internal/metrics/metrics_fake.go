@@ -1,27 +1,27 @@
 package metrics
 
-// metricsLoggerFake is a no-op implementation of MetricsLogger
-type metricsLoggerFake struct{}
+// metricsFake is a no-op implementation of MetricsLogger
+type metricsFake struct{}
 
 // Ensure FakeMetricsLogger implements MetricsLoggerInterface
-var _ MetricsLogger = (*metricsLoggerFake)(nil)
+var _ Metrics = (*metricsFake)(nil)
 
 // NewFakeMetrics creates an instance of FakeMetricsLogger
-func NewMetricsFake() MetricsLogger {
-	return &metricsLoggerFake{}
+func NewMetricsFake() Metrics {
+	return &metricsFake{}
 }
 
 // LogEvent is a no-op method for FakeMetricsLogger
-func (this *metricsLoggerFake) LogEvent(eventName string, tags map[string]string, fields map[string]interface{}) {
+func (metrics *metricsFake) LogEvent(_ string, _ map[string]string, _ map[string]interface{}) {
 	// No operation, this is a fake logger
 }
 
 // LogChatEvent is a no-op method for FakeMetricsLogger
-func (this *metricsLoggerFake) LogChatEvent(eventName string, chatID int64, fields map[string]interface{}) {
+func (metrics *metricsFake) LogChatEvent(_ string, _ int64, _ map[string]interface{}) {
 	// No operation, this is a fake logger
 }
 
 // Close is a no-op method for FakeMetricsLogger
-func (this *metricsLoggerFake) Close() {
+func (metrics *metricsFake) Close() {
 	// No operation, this is a fake logger
 }

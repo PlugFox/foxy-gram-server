@@ -9,14 +9,14 @@ import (
 	"github.com/influxdata/influxdb-client-go/v2/api"
 )
 
-// MetricsLogger defines the contract for logging metrics
-type MetricsLogger interface {
+// Metrics defines the contract for logging metrics
+type Metrics interface {
 	LogEvent(eventName string, tags map[string]string, fields map[string]interface{})
 	LogChatEvent(eventName string, chatID int64, fields map[string]interface{})
 	Close()
 }
 
-type metricsLoggerImpl struct {
+type metricsImpl struct {
 	client      influxdb2.Client
 	writeAPI    api.WriteAPI
 	org         string
@@ -25,13 +25,13 @@ type metricsLoggerImpl struct {
 }
 
 // Ensure MetricsLogger implements MetricsLoggerInterface
-var _ MetricsLogger = (*metricsLoggerImpl)(nil)
+var _ Metrics = (*metricsImpl)(nil)
 
 // New initializes the logger with constant tags like bot ID
-func NewMetricsImpl(url string, token string, org string, bucket string, defaultTags map[string]string) MetricsLogger {
+func NewMetricsImpl(url string, token string, org string, bucket string, defaultTags map[string]string) Metrics {
 	client := influxdb2.NewClient(url, token)
 	writeAPI := client.WriteAPI(org, bucket)
-	return &metricsLoggerImpl{
+	return &metricsImpl{
 		client:      client,
 		writeAPI:    writeAPI,
 		org:         org,
@@ -41,8 +41,8 @@ func NewMetricsImpl(url string, token string, org string, bucket string, default
 }
 
 // Universal method to log an event with customizable tags and fields
-func (this *metricsLoggerImpl) LogEvent(eventName string, tags map[string]string, fields map[string]interface{}) {
-	if fields == nil || len(fields) == 0 {
+func (metrics *metricsImpl) LogEvent(eventName string, tags map[string]string, fields map[string]interface{}) {
+	if len(fields) == 0 {
 		return
 	}
 
@@ -51,7 +51,7 @@ func (this *metricsLoggerImpl) LogEvent(eventName string, tags map[string]string
 		SetTime(time.Now())
 
 	// Add constant default tags
-	for key, value := range this.defaultTags {
+	for key, value := range metrics.defaultTags {
 		point.AddTag(key, value)
 	}
 
@@ -65,12 +65,12 @@ func (this *metricsLoggerImpl) LogEvent(eventName string, tags map[string]string
 		point.AddField(key, value)
 	}
 
-	this.writeAPI.WritePoint(point)
+	metrics.writeAPI.WritePoint(point)
 	fmt.Printf("Logged event: %s with tags %v and fields %v\n", eventName, tags, fields)
 }
 
 // Specific method for logging chat-related events
-func (this *metricsLoggerImpl) LogChatEvent(eventName string, chatID int64, fields map[string]interface{}) {
+func (metrics *metricsImpl) LogChatEvent(eventName string, chatID int64, fields map[string]interface{}) {
 	if chatID == 0 {
 		return
 	}
@@ -79,11 +79,11 @@ func (this *metricsLoggerImpl) LogChatEvent(eventName string, chatID int64, fiel
 		"chat_id": strconv.FormatInt(chatID, 10),
 	}
 
-	this.LogEvent(eventName, tags, fields)
+	metrics.LogEvent(eventName, tags, fields)
 }
 
 // Close flushes the write API and closes the client
-func (this *metricsLoggerImpl) Close() {
-	this.writeAPI.Flush()
-	this.client.Close()
+func (metrics *metricsImpl) Close() {
+	metrics.writeAPI.Flush()
+	metrics.client.Close()
 }
