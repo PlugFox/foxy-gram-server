@@ -190,6 +190,14 @@ func verifyUserMiddleware(
 			// Delete the current message, because user is not verified
 			if err := c.Delete(); err != nil {
 				handleError(err)
+			} else {
+				chatID := c.Chat().ID
+				userID := c.Sender().ID
+
+				defer global.Metrics.LogChatEvent("message_deleted", chatID, map[string]interface{}{
+					"chat_id": chatID,
+					"user_id": userID,
+				})
 			}
 
 			return next(c)
@@ -232,6 +240,15 @@ func verifyUserWithLocalDB(
 				if _, err := bot.Send(c.Chat(), msg, tele.ModeMarkdownV2); err != nil {
 					handleError(err)
 				}
+
+				chatID := c.Chat().ID
+				userID := c.Sender().ID
+
+				defer global.Metrics.LogChatEvent("ban", chatID, map[string]interface{}{
+					"chat_id": chatID,
+					"user_id": userID,
+					"reason":  "Local db",
+				})
 
 				return nil // Skip the next pipeline
 			}
@@ -278,13 +295,22 @@ func verifyUserWithCAS(
 					handleError(err)
 				}
 
+				chatID := c.Chat().ID
+				userID := c.Sender().ID
+
 				// Ban the user in the local database
 				if err := db.BanUser(&model.BannedUser{
-					ID:       model.UserID(c.Sender().ID),
+					ID:       model.UserID(userID),
 					BannedAt: time.Now(),
 					Reason:   "CAS banned",
 				}); err != nil {
 					handleError(err)
+				} else {
+					defer global.Metrics.LogChatEvent("ban", chatID, map[string]interface{}{
+						"chat_id": chatID,
+						"user_id": userID,
+						"reason":  "CAS",
+					})
 				}
 
 				return nil // Skip the next pipeline
@@ -353,7 +379,7 @@ func verifyUserWithCaptcha(
 				return nil // Skip the current message, if the captcha message is not sent
 			}
 
-			captcha.UserID = c.Sender().ID
+			captcha.UserID = sender.ID
 			captcha.ChatID = reply.Chat.ID
 			captcha.MessageID = int64(reply.ID)
 
@@ -361,6 +387,16 @@ func verifyUserWithCaptcha(
 			if err := db.UpsertCaptcha(captcha); err != nil {
 				handleError(err)
 			}
+
+			defer global.Metrics.LogChatEvent("captcha_sent", reply.Chat.ID, map[string]interface{}{
+				"message_id": reply.ID,
+				"chat_id":    reply.Chat.ID,
+				"user_id":    sender.ID,
+				"captcha_id": captcha.ID,
+				"length":     captcha.Length,
+				"width":      captcha.Width,
+				"height":     captcha.Height,
+			})
 
 			return nil // Skip the next pipeline, because the user should solve the captcha
 		}
@@ -389,8 +425,21 @@ func storeMessagesMiddleware(db *storage.Storage, onError func(error)) tele.Midd
 								converters.UserFromTG(msg.UserLeft),
 							},
 						})
-					if err != nil && onError != nil {
-						onError(err)
+					if err != nil {
+						if onError != nil {
+							onError(err)
+						}
+						defer global.Metrics.LogChatEvent("message_store_error", msg.Chat.ID, map[string]interface{}{
+							"message_id": msg.ID,
+							"chat_id":    msg.Chat.ID,
+							"user_id":    msg.Sender.ID,
+						})
+					} else {
+						defer global.Metrics.LogChatEvent("message_stored", msg.Chat.ID, map[string]interface{}{
+							"message_id": msg.ID,
+							"chat_id":    msg.Chat.ID,
+							"user_id":    msg.Sender.ID,
+						})
 					}
 				}()
 			}

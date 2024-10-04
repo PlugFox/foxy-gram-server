@@ -125,6 +125,14 @@ func GenerateCaptcha(writer io.Writer) (*Captcha, error) {
 
 	digits := strings.Join(strNumbers, "")
 
+	if m := global.Metrics; m != nil {
+		defer m.LogEvent("captcha_generated", nil, map[string]interface{}{
+			"length": config.Length,
+			"width":  config.Width,
+			"height": config.Height,
+		})
+	}
+
 	return &Captcha{
 		Digits:     digits,
 		Length:     config.Length,

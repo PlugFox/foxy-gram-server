@@ -18,6 +18,7 @@ import (
 	"github.com/plugfox/foxy-gram-server/internal/global"
 	"github.com/plugfox/foxy-gram-server/internal/httpclient"
 	log "github.com/plugfox/foxy-gram-server/internal/log"
+	"github.com/plugfox/foxy-gram-server/internal/metrics"
 	"github.com/plugfox/foxy-gram-server/internal/model"
 	"github.com/plugfox/foxy-gram-server/internal/server"
 	storage "github.com/plugfox/foxy-gram-server/internal/storage"
@@ -44,6 +45,19 @@ func main() {
 		log.WithLevel(config.Verbose),
 		log.WithSource(),
 	)
+
+	// Metrics configuration
+	if config.Metrics.IsValid() {
+		global.Metrics = metrics.NewMetricsImpl(
+			config.Metrics.URL,
+			config.Metrics.Token,
+			config.Metrics.Org,
+			config.Metrics.Bucket,
+			map[string]string{},
+		)
+	} else {
+		global.Metrics = metrics.NewMetricsFake()
+	}
 
 	global.Config = config
 	global.Logger = logger
@@ -114,6 +128,9 @@ func waitExitSignal(sigCh chan os.Signal, t *telegram.Telegram, s *server.Server
 
 	// Wait for both goroutines to complete before exiting.
 	wg.Wait()
+
+	// Flush and close the metrics logger.
+	global.Metrics.Close()
 }
 
 // Starts the server and waits for the SIGINT or SIGTERM signal to shutdown the server.
@@ -218,6 +235,11 @@ func run() error {
 		slog.String("host", global.Config.API.Host),
 		slog.Int("port", global.Config.API.Port),
 	)
+
+	global.Metrics.LogEvent("server_started", nil, map[string]interface{}{
+		"host": global.Config.API.Host,
+		"port": global.Config.API.Port,
+	})
 
 	// Wait for the SIGINT or SIGTERM signal to shutdown the server.
 	waitExitSignal(sigCh, telegram, server)

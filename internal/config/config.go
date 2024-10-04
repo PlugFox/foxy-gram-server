@@ -17,6 +17,7 @@ type Config struct {
 	Verbose     string `env:"VERBOSE"     env-default:"warn"       env-description:"Verbose mode for output: debug | info | warn | error" yaml:"verbose"`
 
 	Proxy    ProxyConfig    `env-description:"Proxy SOCKS5 server config" yaml:"proxy"`
+	Metrics  MetricsConfig  `yaml:"metrics"`
 	Telegram TelegramConfig `yaml:"telegram"`
 	Captcha  CaptchaConfig  `yaml:"captcha"`
 	API      APIConfig      `yaml:"api"`
@@ -31,6 +32,19 @@ type ProxyConfig struct {
 	Password string `env:"PROXY_PASSWORD" env-description:"Proxy server password"     yaml:"password"`
 }
 
+// Metrics config.
+type MetricsConfig struct {
+	URL    string `env:"METRICS_URL"    env-description:"Metrics URL"    yaml:"metrics"`
+	Token  string `env:"METRICS_TOKEN"  env-description:"Metrics token"  yaml:"token"`
+	Org    string `env:"METRICS_ORG"    env-description:"Metrics org"    yaml:"org"`
+	Bucket string `env:"METRICS_BUCKET" env-description:"Metrics bucket" yaml:"bucket"`
+}
+
+// IsValid - check if the metrics config is valid.
+func (config *MetricsConfig) IsValid() bool {
+	return config != nil && config.URL != "" && config.Token != "" && config.Org != "" && config.Bucket != ""
+}
+
 // Telegram config.
 type TelegramConfig struct {
 	Token     string        `env:"TELEGRAM_TOKEN"      env-description:"Telegram bot token"          env-required:"true"                               yaml:"token"`
@@ -42,6 +56,7 @@ type TelegramConfig struct {
 	IgnoreVia bool          `env:"TELEGRAM_IGNORE_VIA" env-default:"false"                           env-description:"Ignore messages from other bots" yaml:"ignore_via"`
 }
 
+// Captcha config.
 type CaptchaConfig struct {
 	Length     int           `env:"CAPTCHA_LENGTH"     env-default:"6"   env-description:"Captcha length"          yaml:"length"`
 	Width      int           `env:"CAPTCHA_WIDTH"      env-default:"480" env-description:"Captcha image width"     yaml:"width"`
@@ -64,11 +79,6 @@ type DatabaseConfig struct {
 	Driver     string `env:"DATABASE_DRIVER"     env-default:"sqlite3"    env-description:"Database driver to use: sqlite3 | postgres | mysql" yaml:"driver"`
 	Connection string `env:"DATABASE_CONNECTION" env-default:"db.sqlite3" env-description:"Connection string or path for SQLite database"      yaml:"connection"`
 	Logging    bool   `env:"DATABASE_LOGGING"    env-default:"false"      env-description:"Enable database logging"                            yaml:"logging"`
-}
-
-// IsValid - check if the google sign in config is valid.
-func IsValid() bool {
-	return true
 }
 
 // MustLoadConfig - load config from file or environment variables.

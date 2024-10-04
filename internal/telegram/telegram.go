@@ -79,20 +79,6 @@ func New(db *storage.Storage, httpClient *http.Client) (*Telegram, error) {
 		global.Logger.Error("store message error", slog.String("error", err.Error()))
 	}))
 
-	/* bot.Use(mw.Restrict(mw.RestrictConfig{
-		Chats: []int64{config.Telegram.ChatID},
-		In: func(c tele.Context) error {
-			return c.Send("Hello!")
-		},
-		Out: func(c tele.Context) error {
-			return c.Send("Sorry, I don't know you")
-		},
-	})) */
-
-	/* bot.Handle("/hello", func(c tele.Context) error {
-		return c.Send("Hello!")
-	}) */
-
 	// Group-scoped middleware:
 	if len(global.Config.Telegram.Admins) > 0 {
 		adminOnly := bot.Group()
@@ -101,26 +87,23 @@ func New(db *storage.Storage, httpClient *http.Client) (*Telegram, error) {
 		adminOnly.Use(middleware.Whitelist(global.Config.Telegram.Admins...))
 	}
 
-	// TODO: add more handlers
-	// tele.OnAddedToGroup
-	// tele.OnUserJoined
-	// Verify the user is passing the captcha or sending the code with buttons
-	// check out examples at the github
-
-	/* bot.Handle("/id", func(c tele.Context) error {
-		c.Reply(fmt.Sprintf("Your ID: `%d`\nChat ID: `%d`", c.Sender().ID, c.Chat().ID), tele.ModeMarkdownV2)
-		return nil
-	}) */
-
 	// On text message
 	bot.Handle(tele.OnText, func(_ tele.Context) error {
-		// c.Reply("Hello!")
 		return nil
 	})
 
 	// On edited message
 	bot.Handle(tele.OnEdited, func(_ tele.Context) error {
-		// c.Reply("Hello!")
+		return nil
+	})
+
+	// On user joined
+	bot.Handle(tele.OnUserJoined, func(_ tele.Context) error {
+		return nil
+	})
+
+	// On added to group
+	bot.Handle(tele.OnAddedToGroup, func(_ tele.Context) error {
 		return nil
 	})
 
@@ -182,6 +165,11 @@ func New(db *storage.Storage, httpClient *http.Client) (*Telegram, error) {
 			}); err != nil {
 				return err
 			}
+
+			defer global.Metrics.LogChatEvent("captcha_refreshed", captcha.ChatID, map[string]interface{}{
+				"chat_id": captcha.ChatID,
+				"user_id": captcha.UserID,
+			})
 
 		case "captcha-backspace":
 			// Backspace the last number in the captcha code
@@ -253,6 +241,11 @@ func New(db *storage.Storage, httpClient *http.Client) (*Telegram, error) {
 				global.Logger.Warn("Failed to delete the captcha", slog.String("error", err.Error()))
 			}
 
+			defer global.Metrics.LogChatEvent("captcha_solved", captcha.ChatID, map[string]interface{}{
+				"chat_id": captcha.ChatID,
+				"user_id": captcha.UserID,
+			})
+
 			return nil
 		} else if len(captcha.Input) >= len(captcha.Digits) {
 			if err := c.RespondText("Invalid captcha code. Please try again."); err != nil {
@@ -261,6 +254,11 @@ func New(db *storage.Storage, httpClient *http.Client) (*Telegram, error) {
 
 			captcha.Input = ""
 			editCaption = true
+
+			defer global.Metrics.LogChatEvent("captcha_failed", captcha.ChatID, map[string]interface{}{
+				"chat_id": captcha.ChatID,
+				"user_id": captcha.UserID,
+			})
 		}
 
 		captcha.Expiration = global.Config.Captcha.Expiration // Reset the expiration time
@@ -280,6 +278,11 @@ func New(db *storage.Storage, httpClient *http.Client) (*Telegram, error) {
 				}); err != nil {
 				return err
 			}
+
+			defer global.Metrics.LogChatEvent("captcha_edited", captcha.ChatID, map[string]interface{}{
+				"chat_id": captcha.ChatID,
+				"user_id": captcha.UserID,
+			})
 		}
 
 		return nil
