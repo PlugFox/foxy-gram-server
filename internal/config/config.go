@@ -34,7 +34,7 @@ type ProxyConfig struct {
 
 // Metrics config.
 type MetricsConfig struct {
-	URL    string `env:"METRICS_URL"    env-description:"Metrics URL"    yaml:"metrics"`
+	URL    string `env:"METRICS_URL"    env-description:"Metrics URL"    yaml:"url"`
 	Token  string `env:"METRICS_TOKEN"  env-description:"Metrics token"  yaml:"token"`
 	Org    string `env:"METRICS_ORG"    env-description:"Metrics org"    yaml:"org"`
 	Bucket string `env:"METRICS_BUCKET" env-description:"Metrics bucket" yaml:"bucket"`
