@@ -163,31 +163,15 @@ func run() error {
 	httpClient := initHTTPClient()
 
 	// Setup Telegram bot
-	telegram := initTelegram(db, httpClient)
+	tg := initTelegram(db, httpClient)
 
 	// Update the bot user information
-	if err := db.UpsertUser(telegram.Me().Seen()); err != nil {
+	if err := db.UpsertUser(tg.Me().Seen()); err != nil {
 		return fmt.Errorf("upserting user error: %w", err)
 	}
 
-	// Setup API server
-	server := initServer()
-	server.AddHealthCheck(
-		func() (bool, map[string]string) {
-			dbStatus, dbErr := db.Status()
-			srvStatus, srvErr := server.Status()
-			tgStatus, tgErr := telegram.Status()
-
-			isHealthy := dbErr == nil && srvErr == nil && tgErr == nil
-
-			return isHealthy, map[string]string{
-				"database": dbStatus,
-				"server":   srvStatus,
-				"telegram": tgStatus,
-			}
-		},
-	) // Add health check endpoint
-	server.AddVerifyUsers(db) // Add verify users endpoint [POST] /admin/verify
+	// Setup API srv
+	srv := initServer(db, tg)
 
 	// TODO: Setup Centrifuge server
 
@@ -215,7 +199,7 @@ func run() error {
 						global.Logger.ErrorContext(ctx, "database: deleting outdated captcha error", slog.String("error", err.Error()), slog.Int64("id", captcha.ID))
 						continue
 					}
-					if err := telegram.DeleteMessage(captcha.ChatID, captcha.MessageID); err != nil {
+					if err := tg.DeleteMessage(captcha.ChatID, captcha.MessageID); err != nil {
 						global.Logger.ErrorContext(ctx, "telegram: deleting outdated captcha error", slog.String("error", err.Error()), slog.Int64("id", captcha.ID))
 						continue
 					}
@@ -242,7 +226,7 @@ func run() error {
 	})
 
 	// Wait for the SIGINT or SIGTERM signal to shutdown the server.
-	waitExitSignal(sigCh, telegram, server)
+	waitExitSignal(sigCh, tg, srv)
 	close(sigCh)
 
 	return nil
@@ -284,8 +268,25 @@ func initTelegram(db *storage.Storage, httpClient *http.Client) *telegram.Telegr
 }
 
 // Initialize the API server
-func initServer() *server.Server {
+func initServer(db *storage.Storage, tg *telegram.Telegram) *server.Server {
 	srv := server.New()
+
+	srv.AddHealthCheck(
+		func() (bool, map[string]string) {
+			dbStatus, dbErr := db.Status()
+			srvStatus, srvErr := srv.Status()
+			tgStatus, tgErr := tg.Status()
+
+			isHealthy := dbErr == nil && srvErr == nil && tgErr == nil
+
+			return isHealthy, map[string]string{
+				"database": dbStatus,
+				"server":   srvStatus,
+				"telegram": tgStatus,
+			}
+		},
+	) // Add health check endpoint
+	srv.AddVerifyUsers(db) // Add verify users endpoint [POST] /admin/verify
 
 	// Start the server
 	go func() {
