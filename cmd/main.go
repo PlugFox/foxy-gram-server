@@ -134,8 +134,6 @@ func waitExitSignal(sigCh chan os.Signal, t *telegram.Telegram, s *server.Server
 }
 
 // Starts the server and waits for the SIGINT or SIGTERM signal to shutdown the server.
-//
-//nolint:funlen
 func run() error {
 	if global.Config == nil || global.Logger == nil {
 		return err.ErrorGlobalVariablesNotInitialized
