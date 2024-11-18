@@ -237,7 +237,7 @@ func initStorage() *storage.Storage {
 		panic(fmt.Sprintf("database connection error: %v", err))
 	}
 
-	return db    
+	return db
 }
 
 // Create a new HTTP client

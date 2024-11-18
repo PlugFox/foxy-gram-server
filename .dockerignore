@@ -20,3 +20,6 @@ api/
 .golangci.yml
 Makefile
 tools.go
+tools/
+result.json
+ids.txt

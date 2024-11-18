@@ -186,3 +186,7 @@ config.yml
 
 # Linter
 lint-reports
+
+# Telegram history and ids
+result.json
+ids.txt
