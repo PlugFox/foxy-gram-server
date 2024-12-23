@@ -2,10 +2,7 @@ package telegram
 
 import (
 	"bytes"
-	"context"
-	"encoding/json"
 	"fmt"
-	"net/http"
 	"time"
 
 	"github.com/plugfox/foxy-gram-server/internal/converters"
@@ -19,7 +16,7 @@ const (
 	contextKeyShouldVerify = "should_verify" // Context key for the verification flag, we should verify the user
 )
 
-var errorUnexpectedStatusCode = fmt.Errorf("unexpected status code")
+// var errorUnexpectedStatusCode = fmt.Errorf("unexpected status code")
 
 // Check if the chat is allowed.
 func allowedChats(chatID int64) bool {
@@ -66,6 +63,7 @@ func isUserLocalBanned(db *storage.Storage, user *tele.User) (bool, error) {
 	return false, nil
 }
 
+/*
 // Verify the user with a CAS ban
 func isUserCASBanned(httpClient *http.Client, user *tele.User) (bool, error) {
 	// Check CAS ban
@@ -116,6 +114,7 @@ func isUserCASBanned(httpClient *http.Client, user *tele.User) (bool, error) {
 	// Return whether the user is flagged by CAS
 	return casResponse.Ok, nil
 }
+*/
 
 // Verify user middleware - verify the user with a captcha
 func verifyUserMiddleware(
@@ -258,6 +257,7 @@ func verifyUserWithLocalDB(
 	}
 }
 
+/*
 // Verify the user with a CAS ban
 func verifyUserWithCAS(
 	db *storage.Storage,
@@ -320,6 +320,7 @@ func verifyUserWithCAS(
 		}
 	}
 }
+*/
 
 // Verify the user with a captcha
 func verifyUserWithCaptcha(
