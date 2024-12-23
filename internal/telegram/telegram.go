@@ -58,9 +58,9 @@ func New(db *storage.Storage, httpClient *http.Client) (*Telegram, error) {
 		global.Logger.Error("verify user with local db error", slog.String("error", err.Error()))
 	}))
 
-	bot.Use(verifyUserWithCAS(db, httpClient, func(err error) {
+	/* bot.Use(verifyUserWithCAS(db, httpClient, func(err error) {
 		global.Logger.Error("verify user with cas error", slog.String("error", err.Error()))
-	}))
+	})) */
 
 	bot.Use(verifyUserWithCaptcha(db, func(err error) {
 		global.Logger.Error("verify user with captcha error", slog.String("error", err.Error()))
