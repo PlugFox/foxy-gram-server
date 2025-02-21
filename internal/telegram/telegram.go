@@ -87,25 +87,33 @@ func New(db *storage.Storage, httpClient *http.Client) (*Telegram, error) {
 		adminOnly.Use(middleware.Whitelist(global.Config.Telegram.Admins...))
 	}
 
-	// On text message
-	bot.Handle(tele.OnText, func(_ tele.Context) error {
-		return nil
-	})
+	handlers := []interface{}{
+		tele.OnText,
+		tele.OnEdited,
+		tele.OnUserJoined,
+		tele.OnAddedToGroup,
+		tele.OnPhoto,
+		tele.OnAudio,
+		tele.OnAnimation,
+		tele.OnDocument,
+		tele.OnSticker,
+		tele.OnVideo,
+		tele.OnVoice,
+		tele.OnVideoNote,
+		tele.OnContact,
+		tele.OnLocation,
+		tele.OnVenue,
+		tele.OnPoll,
+		tele.OnDice,
+		tele.OnChannelPost,
+		tele.OnMedia,
+	}
 
-	// On edited message
-	bot.Handle(tele.OnEdited, func(_ tele.Context) error {
-		return nil
-	})
-
-	// On user joined
-	bot.Handle(tele.OnUserJoined, func(_ tele.Context) error {
-		return nil
-	})
-
-	// On added to group
-	bot.Handle(tele.OnAddedToGroup, func(_ tele.Context) error {
-		return nil
-	})
+	for _, handler := range handlers {
+		bot.Handle(handler, func(_ tele.Context) error {
+			return nil
+		})
+	}
 
 	// Handle the captcha keyboard
 	bot.Handle(&tele.Btn{Unique: captchaKeyboardUnique}, func(c tele.Context) error {
