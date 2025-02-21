@@ -87,6 +87,7 @@ func New(db *storage.Storage, httpClient *http.Client) (*Telegram, error) {
 		adminOnly.Use(middleware.Whitelist(global.Config.Telegram.Admins...))
 	}
 
+	const onStory = "\astory" // Custom event for story messages
 	handlers := []interface{}{
 		tele.OnText,
 		tele.OnEdited,
@@ -107,6 +108,9 @@ func New(db *storage.Storage, httpClient *http.Client) (*Telegram, error) {
 		tele.OnDice,
 		tele.OnChannelPost,
 		tele.OnMedia,
+		tele.OnMyChatMember,
+		tele.OnChatMember,
+		onStory,
 	}
 
 	for _, handler := range handlers {
@@ -114,6 +118,15 @@ func New(db *storage.Storage, httpClient *http.Client) (*Telegram, error) {
 			return nil
 		})
 	}
+
+	go func(b *tele.Bot) {
+		for update := range bot.Updates {
+			if update.Message != nil && update.Message.Story != nil {
+				c := b.NewContext(update)
+				b.Trigger(onStory, c)
+			}
+		}
+	}(bot)
 
 	// Handle the captcha keyboard
 	bot.Handle(&tele.Btn{Unique: captchaKeyboardUnique}, func(c tele.Context) error {
