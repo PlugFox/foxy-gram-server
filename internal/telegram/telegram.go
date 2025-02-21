@@ -123,7 +123,10 @@ func New(db *storage.Storage, httpClient *http.Client) (*Telegram, error) {
 		for update := range bot.Updates {
 			if update.Message != nil && update.Message.Story != nil {
 				c := b.NewContext(update)
-				b.Trigger(onStory, c)
+				err := b.Trigger(onStory, c)
+				if err != nil {
+					global.Logger.Error("telegram: story handler error", slog.String("error", err.Error()))
+				}
 			}
 		}
 	}(bot)
