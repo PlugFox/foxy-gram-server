@@ -120,6 +120,13 @@ func New(db *storage.Storage, httpClient *http.Client) (*Telegram, error) {
 	}
 
 	go func(b *tele.Bot) {
+		// Recovery:
+		defer func() {
+			if r := recover(); r != nil {
+				global.Logger.Error("telegram: panic", slog.String("error", r.(error).Error()))
+			}
+		}()
+
 		for update := range bot.Updates {
 			if update.Message != nil && update.Message.Story != nil {
 				c := b.NewContext(update)
